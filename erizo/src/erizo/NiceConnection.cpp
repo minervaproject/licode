@@ -36,45 +36,46 @@ void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
 	NiceCandidate *cand;
 	GSList* iterator;
 //////False candidate for testing when there is no network (like in the train) :)
- /* 
-		NiceCandidate* thecandidate = nice_candidate_new(NICE_CANDIDATE_TYPE_HOST);
-		NiceAddress* naddr = nice_address_new();
-		nice_address_set_from_string(naddr, "127.0.0.1");
-		nice_address_set_port(naddr, 50000);
-		thecandidate->addr = *naddr;
-		char* uname = (char*) malloc(50);
-		char* pass = (char*) malloc(50);
-		sprintf(thecandidate->foundation, "%s", "1");
-		sprintf(uname, "%s", "Pedro");
-		sprintf(pass, "%s", "oooo");
+  
+//		NiceCandidate* thecandidate = nice_candidate_new(NICE_CANDIDATE_TYPE_HOST);
+//		NiceAddress* naddr = nice_address_new();
+//		nice_address_set_from_string(naddr, "54.214.124.191");
+//		nice_address_set_port(naddr, 50000);
+//		thecandidate->addr = *naddr;
+//		char* uname = (char*) malloc(50);
+//		char* pass = (char*) malloc(50);
+//		sprintf(thecandidate->foundation, "%s", "1");
+//		sprintf(uname, "%s", "Pedro");
+//		sprintf(pass, "%s", "oooo");
+//
+//		thecandidate->username = uname;
+//		thecandidate->password = pass;
+//		thecandidate->stream_id = (guint) 1;
+//		thecandidate->component_id = 1;
+//		thecandidate->priority = 1000;
+//		thecandidate->transport = NICE_CANDIDATE_TRANSPORT_UDP;
+//		lcands = g_slist_append(lcands, thecandidate);
 
-		thecandidate->username = uname;
-		thecandidate->password = pass;
-		thecandidate->stream_id = (guint) 1;
-		thecandidate->component_id = 1;
-		thecandidate->priority = 1000;
-		thecandidate->transport = NICE_CANDIDATE_TRANSPORT_UDP;
-		lcands = g_slist_append(lcands, thecandidate);
-*/
 
-	//	printf("gathering done %u\n",stream_id);
-	//printf("Candidates---------------------------------------------------->\n");
+		printf("gathering done %u\n",stream_id);
+	printf("Candidates---------------------------------------------------->\n");
 	while (lcands != NULL) {
 		for (iterator = lcands; iterator; iterator = iterator->next) {
 			char address[40];
 			cand = (NiceCandidate*) iterator->data;
 			nice_address_to_string(&cand->addr, address);
+			strcpy(address, "54.214.124.191");
 			if (strstr(address, ":") != NULL) {
 				printf("Ignoring IPV6 candidate\n");
 				continue;
 
 			}
-//			printf("foundation %s\n", cand->foundation);
-//			printf("compid %u\n", cand->component_id);
-//			printf("stream_id %u\n", cand->stream_id);
-//			printf("priority %u\n", cand->priority);
-//			printf("username %s\n", cand->username);
-//			printf("password %s\n", cand->password);
+			printf("foundation %s\n", cand->foundation);
+			printf("compid %u\n", cand->component_id);
+			printf("stream_id %u\n", cand->stream_id);
+			printf("priority %u\n", cand->priority);
+			printf("username %s\n", cand->username);
+			printf("password %s\n", cand->password);
 			CandidateInfo cand_info;
 			cand_info.componentId = cand->component_id;
 			cand_info.foundation = cand->foundation;

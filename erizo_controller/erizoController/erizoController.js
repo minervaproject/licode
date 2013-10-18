@@ -82,7 +82,7 @@ var addToCloudHandler = function (callback) {
         }
     }
 
-    publicIP = addresses[0];
+    publicIP = "54.214.124.191";
     privateRegexp = new RegExp(publicIP, 'g');
 
     rpc.callRpc('nuve', 'addNewErizoController', {cloudProvider: config.cloudProvider.name, ip: publicIP}, function (msg) {

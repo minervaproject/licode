@@ -396,6 +396,7 @@ namespace erizo {
       } else if (recvSSRC==remoteAudioSSRC_ || recvSSRC==localAudioSsrc_) {
         videoReceiver_->receiveAudioData(buf, length);
       } else {
+	videoReceiver_->receiveVideoData(buf, length);
         printf("Unknown SSRC %u, localVideo %u, remoteVideo %u, ignoring\n", recvSSRC, localVideoSsrc_, remoteVideoSSRC_);
       }
       return length;
