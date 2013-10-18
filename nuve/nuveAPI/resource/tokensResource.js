@@ -114,7 +114,8 @@ var generateToken = function (callback) {
                 return;
             }
 
-            token.host = ec.ip + ':8080';
+            //token.host = ec.ip + ':443';
+            token.host = "av.minervaproject.com:443";
 
             tokenRegistry.addToken(token, function (id) {
 

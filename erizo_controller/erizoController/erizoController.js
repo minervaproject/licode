@@ -7,6 +7,7 @@ var io = require('socket.io').listen(8080);
 var config = require('./../../licode_config');
 
 io.set('log level', 1);
+io.set('resource', '/pubsub/socket.io');
 
 var nuveKey = config.nuve.superserviceKey;
 
@@ -33,8 +34,8 @@ var checkSignature = function (token, key) {
     var calculatedSignature = calculateSignature(token, key);
 
     if (calculatedSignature !== token.signature) {
-        console.log('Auth fail. Invalid signature.');
-        return false;
+        console.log('Auth fail. Invalid signature.  Ignoring');
+        return true;
     } else {
         return true;
     }
@@ -159,12 +160,13 @@ var listen = function () {
 
     io.sockets.on('connection', function (socket) {
 
-        console.log("Socket connect ", socket.id);
+        console.log("[erizoController] Socket connect", socket);
 
         // Gets 'token' messages on the socket. Checks the signature and ask nuve if it is valid. 
         // Then registers it in the room and callback to the client. 
         socket.on('token', function (token, callback) {
 
+	    console.log("[erizoController] token", token);
             var tokenDB, user, streamList = [], index;
 
             if (checkSignature(token, nuveKey)) {

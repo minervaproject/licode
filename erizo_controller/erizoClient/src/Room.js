@@ -93,13 +93,14 @@ Erizo.Room = function (spec) {
 
     // It connects to the server through socket.io
     connectSocket = function (token, callback, error) {
+        console.log("Our token is ", token);
         // Once we have connected
-
-        var host = 'http://' + token.host;
+	    //token.host = "av.minervaproject.com:443";
+        var host = 'https://' + token.host;
 
         delete io.sockets[host];
 
-        that.socket = io.connect(token.host, {reconnect: false, secure: false});
+        that.socket = io.connect(host, {reconnect: false, secure: true, resource: 'pubsub/socket.io'});
 
         // We receive an event with a new stream in the room.
         // type can be "media" or "data"
