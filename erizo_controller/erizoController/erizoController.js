@@ -85,6 +85,7 @@ var addToCloudHandler = function (callback) {
 
     publicIP = addresses[0];
     privateRegexp = new RegExp(publicIP, 'g');
+    console.log("[erizoController] publicIP=", publicIP);
 
     rpc.callRpc('nuve', 'addNewErizoController', {cloudProvider: config.cloudProvider.name, ip: publicIP}, function (msg) {
 
@@ -120,11 +121,11 @@ var addToCloudHandler = function (callback) {
 //*******************************************************************
 //       When adding or removing rooms we use an algorithm to check the state
 //       If there is a state change we send a message to cloudHandler
-//      
-//       States: 
+//
+//       States:
 //            0: Not available
 //            1: Warning
-//            2: Available 
+//            2: Available
 //*******************************************************************
 var updateMyState = function () {
     "use strict";
@@ -162,8 +163,8 @@ var listen = function () {
 
         console.log("[erizoController] Socket connect", socket);
 
-        // Gets 'token' messages on the socket. Checks the signature and ask nuve if it is valid. 
-        // Then registers it in the room and callback to the client. 
+        // Gets 'token' messages on the socket. Checks the signature and ask nuve if it is valid.
+        // Then registers it in the room and callback to the client.
         socket.on('token', function (token, callback) {
 
 	    console.log("[erizoController] token", token);
@@ -289,9 +290,9 @@ var listen = function () {
             if (stream.hasData() && options.data !== false) {
                 stream.addDataSubscriber(socket.id);
             }
-            
+
             if (stream.hasAudio() || stream.hasVideo() || stream.hasScreen()) {
-                
+
                 if (socket.room.p2p) {
                     var s = stream.getSocket();
                     io.sockets.socket(s).emit('onSubscribeP2P', {streamId: options.streamId, subsSocket: socket.id}, function(offer) {
@@ -350,7 +351,7 @@ var listen = function () {
 
         });
 
-        //When a client leaves the room erizoController removes its streams from the room if exists.  
+        //When a client leaves the room erizoController removes its streams from the room if exists.
         socket.on('disconnect', function () {
             var i, index, id;
 
@@ -383,7 +384,7 @@ var listen = function () {
                             if (!socket.room.p2p) {
                                 socket.room.webRtcController.removeClient(socket.id, id);
                             }
-                            
+
                         }
 
                         if (socket.room.streams[id]) {
