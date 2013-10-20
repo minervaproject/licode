@@ -114,8 +114,9 @@ var generateToken = function (callback) {
                 return;
             }
 
-            token.host = ec.ip + ':443';
-            //token.host = config.minervaHost + ":443";
+            // For SSL through nginx, it appears we need the hostname
+            //token.host = ec.ip + ':443';
+            token.host = config.minervaHost + ":443";
 
             tokenRegistry.addToken(token, function (id) {
 
