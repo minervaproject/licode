@@ -38,7 +38,7 @@ var getTokenString = function (id, token) {
 };
 
 /*
- * Generates new token. 
+ * Generates new token.
  * The format of a token is:
  * {tokenId: id, host: erizoController host, signature: signature of the token};
  */
@@ -115,7 +115,7 @@ var generateToken = function (callback) {
             }
 
             //token.host = ec.ip + ':443';
-            token.host = "av.minervaproject.com:443";
+            token.host = config.minervaHost + ":443";
 
             tokenRegistry.addToken(token, function (id) {
 
