@@ -5,6 +5,7 @@ var serviceRegistry = require('./../mdb/serviceRegistry');
 var dataBase = require('./../mdb/dataBase');
 var crypto = require('crypto');
 var cloudHandler = require('../cloudHandler');
+var config = require('./../../../licode_config');
 
 var currentService;
 var currentRoom;
