@@ -53,9 +53,9 @@
 #endif
 
 #define ELOG_DEBUG2(logger, fmt, args...) \
-    if (logger->isDebugEnabled()) { \
+    if (true /*logger->isDebugEnabled()*/) { \
         SPRINTF_ELOG_MSG( __tmp, fmt, ##args ); \
-        LOG4CXX_DEBUG( logger, __tmp ); \
+        LOG4CXX_INFO( logger, __tmp ); \
     }
 
 #define ELOG_INFO2(logger, fmt, args...) \

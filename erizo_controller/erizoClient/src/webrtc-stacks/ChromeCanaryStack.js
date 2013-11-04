@@ -35,6 +35,14 @@ Erizo.ChromeCanaryStack = function (spec) {
 
     that.peerConnection.onicecandidate = function (event) {
         L.Logger.debug("PeerConnection: ", spec.session_id);
+       // HACK (bf) If no new ice candidates for 0.5s, stop waiting
+        clearTimeout(that.moreIceTimeout);
+        that.moreIceTimeout = setTimeout(function() {
+            if (that.moreIceComing) {
+                that.moreIceComing = false;
+                that.markActionNeeded();
+            }
+        }, 500);
         if (!event.candidate) {
             // At the moment, we do not renegotiate when new candidates
             // show up after the more flag has been false once.
@@ -47,6 +55,7 @@ Erizo.ChromeCanaryStack = function (spec) {
             if (that.ices >= 1 && that.moreIceComing) {
                 that.moreIceComing = false;
                 that.markActionNeeded();
+                clearTimeout(that.moreIceTimeout);
             }
         } else {
             that.iceCandidateCount += 1;

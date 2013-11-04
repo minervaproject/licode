@@ -9,6 +9,7 @@ Erizo.ChromeStableStack = function (spec) {
         WebkitRTCPeerConnection = webkitRTCPeerConnection;
 
     console.log("[stable] ", spec);
+    that.spec = spec;
     that.pc_config = {
         "iceServers": []
     };
@@ -96,6 +97,23 @@ Erizo.ChromeStableStack = function (spec) {
 
         return sdp;
     };
+
+    var setSsrc = function (sdp) {
+        if (window.videoSsrc) {
+            var a = sdp.match(/m=video.*\r\n/);
+            var r = a[0] + "a=ssrc:" + window.videoSsrc + " dummy:abc\r\n";
+            sdp = sdp.replace(a[0], r);
+        }
+
+        if (window.audioSsrc) {
+            var a = sdp.match(/m=audio.*\r\n/);
+            var r = a[0] + "a=ssrc:" + window.audioSsrc + " dummy:abc\r\n";
+            sdp = sdp.replace(a[0], r);
+        }
+
+        return sdp;
+    };
+
 
     /**
      * This function processes signalling messages from the other side.
@@ -248,7 +266,20 @@ Erizo.ChromeStableStack = function (spec) {
                 // If not, no change is needed.   
 
                 that.peerConnection.createOffer(function (sessionDescription) {
-
+                    var sdp = sessionDescription.sdp;
+                    var m = sdp.match(/m=audio[\s\S.]*?a=ssrc:(\d*)/m);
+                    if (m && m.length > 1) {
+                        window.audioSsrc = m[1];
+                    }
+                    m = sdp.match(/m=video[\s\S.]*?a=ssrc:(\d*)/m);
+                    if (m && m.length > 1) {
+                        window.videoSsrc = m[1];
+                    }
+                    console.log("[stable] ssrcs", window.audioSsrc, window.videoSsrc);
+                    if (!m || m.length <= 1) {
+                        console.log("[stable] set ssrc");
+                        sessionDescription.sdp = setSsrc(sessionDescription.sdp);
+                    }
                     //sessionDescription.sdp = newOffer.replace(/a=ice-options:google-ice\r\n/g, "");
                     //sessionDescription.sdp = newOffer.replace(/a=crypto:0 AES_CM_128_HMAC_SHA1_80 inline:.*\r\n/g, "a=crypto:0 AES_CM_128_HMAC_SHA1_80 inline:eUMxlV2Ib6U8qeZot/wEKHw9iMzfKUYpOPJrNnu3\r\n");
                     //sessionDescription.sdp = newOffer.replace(/a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:.*\r\n/g, "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:eUMxlV2Ib6U8qeZot/wEKHw9iMzfKUYpOPJrNnu3\r\n");

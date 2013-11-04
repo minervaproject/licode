@@ -139,6 +139,7 @@ void DtlsTransport::write(char* data, int len) {
 
       rtcpheader *chead = reinterpret_cast<rtcpheader*> (protectBuf_);
       if (chead->packettype == RTCP_Sender_PT || chead->packettype == RTCP_Receiver_PT || chead->packettype == RTCP_Feedback_PT) {
+        //printf("RTCP packet sent %d", chead->packettype);
         if (!rtcp_mux_) {
           comp = 2;
         }
@@ -152,6 +153,7 @@ void DtlsTransport::write(char* data, int len) {
         }
       }
       else{
+        //printf("RTP packet sent %d", chead->packettype);
         comp = 1;
 
         if (srtp && nice_->iceState == NICE_READY) {

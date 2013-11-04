@@ -448,6 +448,8 @@ namespace erizo {
       char* isRtcpMuxchar = strstr(line,rtcpmux);
       char* isFP = strstr(line,fp);
 
+      ELOG_INFO("[processSdp] %d: %s\n", isSsrc, theline);
+
       if (isRtcpMuxchar){
         isRtcpMux = true;
       }

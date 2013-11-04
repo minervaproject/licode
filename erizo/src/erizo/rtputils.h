@@ -183,6 +183,22 @@ typedef struct {
     uint32_t fractionlost:8;
 } rtcpheader;
 
+// BF: REMB packets for bit-rate control
+typedef struct {
+    uint32_t fmt :5;
+    uint32_t padding :1;
+    uint32_t version :2;
+    uint32_t packettype :8;
+    uint32_t length :16;
+    uint32_t ssrc;
+    uint32_t ssrcsource;
+    uint32_t uniqueid;
+    uint32_t numssrc :8;
+    uint32_t brexp :6;
+    uint32_t brmantissa :18;
+    uint32_t ssrcfeedback;
+} rembpacket;
+
 //     0                   1                    2                   3
 //     0 1 2 3 4 5 6 7 8 9 0 1 2 3  4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 //    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

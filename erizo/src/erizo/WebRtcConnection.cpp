@@ -15,7 +15,8 @@ namespace erizo {
   DEFINE_LOGGER(WebRtcConnection, "WebRtcConnection");
 
   WebRtcConnection::WebRtcConnection(bool audioEnabled, bool videoEnabled, const std::string &stunServer, int stunPort, int minPort, int maxPort) {
-
+    //logger->setLevel(0);
+    printf("*********************** SET LEVEL ****************");
     ELOG_WARN("WebRtcConnection constructor stunserver %s stunPort %d minPort %d maxPort %d\n", stunServer.c_str(), stunPort, minPort, maxPort);
     video_ = 0;
     audio_ = 0;
@@ -103,12 +104,13 @@ namespace erizo {
     localSdp_.isBundle = bundle_;
     localSdp_.isRtcpMux = remoteSdp_.isRtcpMux;
 
-    ELOG_DEBUG("Video %d videossrc %u Audio %d audio ssrc %u Bundle %d", video_, remoteSdp_.videoSsrc, audio_, remoteSdp_.audioSsrc,  bundle_);
+    ELOG_INFO("Video %d videossrc %u Audio %d audio ssrc %u Bundle %d", video_, remoteSdp_.videoSsrc, audio_, remoteSdp_.audioSsrc,  bundle_);
 
     ELOG_DEBUG("Setting SSRC to localSdp %u", this->getVideoSinkSSRC());
     localSdp_.videoSsrc = this->getVideoSinkSSRC();
     localSdp_.audioSsrc = this->getAudioSinkSSRC();
 
+    ELOG_INFO("[setRemoteSdp] videossrc: %u, audiossrc: %u\n", remoteSdp_.videoSsrc, remoteSdp_.audioSsrc);
     this->setVideoSourceSSRC(remoteSdp_.videoSsrc);
     this->setAudioSourceSSRC(remoteSdp_.audioSsrc);
 
@@ -202,12 +204,57 @@ namespace erizo {
         len = len - 1 - totalLength + rtpHeaderLength;
       }
     }
+
+    int log = 1;
+    // if (log) {
+    //   printf("\nRTP Header -- before");
+    //   for (int i=0; i < 24; i++) {
+    //     if (i%4 == 0) {
+    //       printf("\n");
+    //     }
+    //     printf("%x ", (uint8_t)buf[i]);
+    //   }
+    //   printf("\n");      
+    // }
+
     writeSsrc(buf, len, this->getVideoSinkSSRC());
     if (videoTransport_ != NULL) {
       if (videoEnabled_ == true) {
         videoTransport_->write(buf, len);
       }
     }
+          
+    // TODO: Change this to send a REMB packet every n video packets
+   if (log) {
+      // printf("\nRTP Header -- after");
+      // for (int i=0; i < 24; i++) {
+      //   if (i%4 == 0) {
+      //     printf("\n");
+      //   }
+      //   printf("%x ", (uint8_t)buf[i]);
+      // }
+      // printf("\n");
+
+      uint32_t newSource = 
+        (*(uint8_t *)(&buf[8]) << 24) | 
+        (*(uint8_t *)(&buf[9]) << 16) | 
+        (*(uint8_t *)(&buf[10]) << 8) | 
+        (*(uint8_t *)(&buf[11]));
+
+      // printf("calc0: %x\n", *(uint32_t *)(&buf[0]));
+      // printf("calc1: %x\n", *(uint32_t *)(&buf[4]));
+      // printf("calc2: %x\n", *(uint32_t *)(&buf[8]));
+      // printf("calc3: %x\n", *(uint32_t *)(&buf[12]));
+      // printf("calc4: %x\n", *(uint32_t *)(&buf[16]));
+      // printf("newSource: %x\n", newSource);
+      this->setVideoSourceSSRC(newSource);
+
+      // printf("VideoSinkSSRC: %u\n", this->getVideoSinkSSRC());
+      // printf("VideoSourceSSRC: %u\n", this->getVideoSourceSSRC());
+
+      this->sendRembPacket();
+      this->sendFirPacket();
+   }
     return len;
   }
 
@@ -311,7 +358,7 @@ namespace erizo {
   }
 
   int WebRtcConnection::sendFirPacket() {
-    ELOG_DEBUG("SendingFIR");
+    // ELOG_DEBUG("SendingFIR");
     sequenceNumberFIR_++; // do not increase if repetition
     int pos = 0;
     uint8_t rtcpPacket[50];
@@ -345,6 +392,68 @@ namespace erizo {
 
     if (videoTransport_ != NULL) {
       videoTransport_->write((char*)rtcpPacket, pos);
+    }
+
+    return pos;
+  }
+
+  int WebRtcConnection::sendRembPacket() {
+    //ELOG_DEBUG("SendingRemb");
+    uint8_t pkt[50];
+    int pos = 0;
+
+    uint8_t FMT = 15;
+    pkt[pos++] = (uint8_t) 0x80 + FMT;
+    pkt[pos++] = (uint8_t) 206;
+
+    // length of 5
+    pkt[pos++] = (uint8_t) 0;
+    pkt[pos++] = (uint8_t) (5);
+
+    // packet sender
+    uint32_t *ptr = reinterpret_cast<uint32_t*>(pkt + pos);
+    ptr[0] = htonl(this->getVideoSinkSSRC());
+    pos += 4;
+
+    // media source
+    pkt[pos++] = (uint8_t) 0;
+    pkt[pos++] = (uint8_t) 0;
+    pkt[pos++] = (uint8_t) 0;
+    pkt[pos++] = (uint8_t) 0;
+
+    // unique identifier
+    pkt[pos++] = 'R'; // 0x52
+    pkt[pos++] = 'E'; // 0x45
+    pkt[pos++] = 'M'; // 0x4d
+    pkt[pos++] = 'B'; // 0x42
+
+    // Num SSRC
+    pkt[pos++] = 1;
+
+    // BR Exp (exponent of 0)
+    pkt[pos++] = 0;
+
+    // BR Mantissa
+    uint32_t mantissa = 100;
+    pkt[pos++] = (mantissa >> 8) & 0xFF;
+    pkt[pos++] = mantissa & 0xFF;
+
+    // SSRC Feedback
+    uint32_t *ptr2 = reinterpret_cast<uint32_t*>(pkt + pos);
+    ptr2[0] = htonl(this->getVideoSourceSSRC());
+    pos += 4;
+
+    // printf("\nREMB Packet");
+    // for (int i=0; i < pos; i++) {
+    //   if (i%4 == 0) {
+    //     printf("\n");
+    //   }
+    //   printf("%x ", pkt[i]);
+    // }
+    // printf("\n");
+
+    if (videoTransport_ != NULL) {
+      videoTransport_->write((char*)pkt, pos);
     }
 
     return pos;

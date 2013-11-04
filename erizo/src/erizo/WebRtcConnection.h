@@ -84,6 +84,7 @@ public:
 	 * @return the size of the data sent
 	 */
 	int sendFirPacket();
+	int sendRembPacket();
 
 	void setWebRTCConnectionStateListener(
 			WebRtcConnectionStateListener* listener);
