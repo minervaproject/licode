@@ -12,6 +12,8 @@ Erizo.ChromeStableStack = function (spec) {
     that.pc_config = {
         "iceServers": []
     };
+    that.maxVideoBW = spec.maxVideoBW;
+    that.maxAudioBW = spec.maxAudioBW;
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
@@ -66,15 +68,15 @@ Erizo.ChromeStableStack = function (spec) {
     //L.Logger.debug("Created webkitRTCPeerConnnection with config \"" + JSON.stringify(that.pc_config) + "\".");
 
     var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
+        if (that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
         if (spec.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
@@ -82,15 +84,15 @@ Erizo.ChromeStableStack = function (spec) {
     };
 
     var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
+        if (that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
-        if (spec.maxAudioBW) {
+        if (that.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 

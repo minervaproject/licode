@@ -66,7 +66,7 @@ window.onload = function () {
 
       room.addEventListener("room-connected", function (roomEvent) {
 
-        room.publish(localStream);
+        room.publish(localStream, {maxVideoBW: 400});
         subscribeToStreams(roomEvent.streams);
       });
 

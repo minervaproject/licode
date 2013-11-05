@@ -85,7 +85,7 @@ namespace erizo {
   }
 
   bool WebRtcConnection::setRemoteSdp(const std::string &sdp) {
-    ELOG_DEBUG("Set Remote SDP %s", sdp.c_str());
+    ELOG_INFO("Set Remote SDP %s", sdp.c_str());
     remoteSdp_.initWithSdp(sdp);
     //std::vector<CryptoInfo> crypto_remote = remoteSdp_.getCryptoInfos();
     video_ = (remoteSdp_.videoSsrc==0?false:true);

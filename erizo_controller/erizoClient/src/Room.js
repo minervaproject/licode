@@ -350,6 +350,17 @@ Erizo.Room = function (spec) {
         }
     };
 
+    that.renegotiate = function(stream) {
+        console.log("[renegotiate] state of pc", stream.pc.state);
+        stream.pc.onsignalingmessage = function(offer) {
+            sendSDPSocket('renegotiate', stream.getID(), offer, function(answer) {
+                stream.pc.onsignalingmessage = function() {};
+                stream.pc.processSignalingMessage(answer);
+            });
+        };
+        stream.pc.markActionNeeded();
+    };
+
     that.startRecording = function (stream){
       recordingUrl = "/tmp/recording" + stream.getID() + ".mkv";
       L.Logger.debug("Start Recording " + recordingUrl);
