@@ -20,6 +20,7 @@ namespace erizo {
     video_ = 0;
     audio_ = 0;
     sequenceNumberFIR_ = 0;
+    videoPacketCount = 0;
     bundle_ = false;
     this->setVideoSinkSSRC(55543);
     this->setAudioSinkSSRC(44444);
@@ -211,6 +212,11 @@ namespace erizo {
         videoTransport_->write(buf, len);
       }
     }
+    videoPacketCount++;
+    if (videoPacketCount % 100 == 0) {
+      printf("VIDEO: Packet %u, SSRC %u\n", videoPacketCount, this->getVideoSinkSSRC());
+    }
+
     return len;
   }
 
