@@ -275,8 +275,10 @@ var listen = function () {
         //Gets 'publish' messages on the socket in order to add new stream to the room.
         socket.on('publish', function (options, sdp, callback) {
             var id, st;
+            console.log("[erizoController] socket.on('publish')", options);
             if (!socket.user.permissions[Permission.PUBLISH]) {
-		callback('error', 'unauthorized');
+		      console.log("[erizoController] permission to publish denied");
+              callback('error', 'unauthorized');
                 return;
             }
             if (options.state === 'url') {
@@ -295,7 +297,9 @@ var listen = function () {
             } else if (options.state !== 'data' && !socket.room.p2p) {
                 if (options.state === 'offer' && socket.state === 'sleeping') {
                     id = Math.random() * 100000000000000000;
+                    console.log("[erizoController] Calling addPublisher");
                     socket.room.webRtcController.addPublisher(id, sdp, function (answer) {
+                        console.log("[erizoController] Received answer", answer);
                         socket.state = 'waitingOk';
                         answer = answer.replace(privateRegexp, publicIP);
                         callback(answer, id);

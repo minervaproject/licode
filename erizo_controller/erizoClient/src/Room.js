@@ -325,6 +325,7 @@ Erizo.Room = function (spec) {
                                 return;
                             }
                             stream.pc.onsignalingmessage = function (ok) {
+                                console.log("[room] Received signaling message");
                                 stream.pc.onsignalingmessage = function () {};
                                 sendSDPSocket('publish', {state: 'ok', streamId: id, data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, ok);
                                 L.Logger.info('Stream published');
