@@ -82,8 +82,10 @@ exports.addNewErizoController = function (msg, callback) {
     "use strict";
 
     if (msg.cloudProvider === '') {
+        console.log("[nuveAPI] Using private erizo controller");
         addNewPrivateErizoController(msg.ip, callback);
     } else if (msg.cloudProvider === 'amazon') {
+        console.log("[nuveAPI] Using Amazon erizo controller");
         addNewAmazonErizoController(msg.ip, callback);
     }
     
