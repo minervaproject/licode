@@ -201,9 +201,14 @@ exports.WebRtcController = function () {
     };
 
     that.renegotiate = function (from, sdp, callback, onReady) {
-        var wrtc = publishers[from + "-wrtc"];
+        var wrtc, roap, remoteSdp, localSdp, answer;
+        wrtc = publishers[from + "-wrtc"];
         logger.info("Renegotiating peer_id", from, wrtc, wrtc.getCurrentState());
-        initWebRtcConnection(wrtc, sdp, callback, onReady);
+        roap = sdp, remoteSdp = getSdp(roap);
+        wrtc.setRemoteSdp(remoteSdp);
+        localSdp = wrtc.getLocalSdp();
+        answer = getRoap(localSdp, roap);
+        callback(answer);
     };
 
     /*

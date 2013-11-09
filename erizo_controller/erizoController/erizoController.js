@@ -331,6 +331,7 @@ var listen = function () {
         });
 
         socket.on("renegotiate", function(id, sdp, callback) {
+            console.log("[erizoController] received renegotiate");
             socket.room.webRtcController.renegotiate(id, sdp, callback);
         });
 
