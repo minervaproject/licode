@@ -59,7 +59,6 @@ exports.WebRtcController = function () {
         var intervarId = setInterval(function () {
 
                 var state = wrtc.getCurrentState(), localSdp, answer;
-
                 if (state == 1 && !sdpDelivered) {
                     localSdp = wrtc.getLocalSdp();
 
@@ -205,7 +204,7 @@ exports.WebRtcController = function () {
         wrtc = publishers[from + "-wrtc"];
         logger.info("Renegotiating peer_id", from, wrtc, wrtc.getCurrentState());
         roap = sdp, remoteSdp = getSdp(roap);
-        wrtc.setRemoteSdp(remoteSdp);
+        //wrtc.setRemoteSdp(remoteSdp);
         localSdp = wrtc.getLocalSdp();
         answer = getRoap(localSdp, roap);
         callback(answer);
