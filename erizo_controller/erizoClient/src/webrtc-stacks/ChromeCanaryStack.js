@@ -8,9 +8,12 @@ Erizo.ChromeCanaryStack = function (spec) {
     var that = {},
         WebkitRTCPeerConnection = webkitRTCPeerConnection;
 
+    console.log("[canary] ", spec);
     that.pc_config = {
         "iceServers": []
     };
+    that.maxVideoBW = spec.maxVideoBW;
+    that.maxAudioBW = spec.maxAudioBW;
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
@@ -35,6 +38,15 @@ Erizo.ChromeCanaryStack = function (spec) {
 
     that.peerConnection.onicecandidate = function (event) {
         L.Logger.debug("PeerConnection: ", spec.session_id);
+        // HACK (bf) If no new ice candidates for 0.5s, stop waiting
+        clearTimeout(that.moreIceTimeout);
+        that.moreIceTimeout = setTimeout(function() {
+            if (that.moreIceComing) {
+                that.moreIceComing = false;
+                that.markActionNeeded();
+            }
+        }, 500);
+
         if (!event.candidate) {
             // At the moment, we do not renegotiate when new candidates
             // show up after the more flag has been false once.
@@ -47,6 +59,7 @@ Erizo.ChromeCanaryStack = function (spec) {
             if (that.ices >= 1 && that.moreIceComing) {
                 that.moreIceComing = false;
                 that.markActionNeeded();
+                clearTimeout(that.moreIceTimeout);
             }
         } else {
             that.iceCandidateCount += 1;
@@ -56,15 +69,15 @@ Erizo.ChromeCanaryStack = function (spec) {
     //L.Logger.debug("Created webkitRTCPeerConnnection with config \"" + JSON.stringify(that.pc_config) + "\".");
 
     var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
+        if (that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
-        if (spec.maxAudioBW) {
+        if (that.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
@@ -72,15 +85,15 @@ Erizo.ChromeCanaryStack = function (spec) {
     };
 
     var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
+        if (that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
-        if (spec.maxAudioBW) {
+        if (that.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
