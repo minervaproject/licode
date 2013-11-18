@@ -63,6 +63,7 @@ namespace erizo {
     ulpfec.mediaType = VIDEO_TYPE;
     internalPayloadVector_.push_back(ulpfec);
 
+
     RtpMap opus;
     opus.payloadType = OPUS_48000_PT;
     opus.encodingName = "opus";
@@ -70,7 +71,7 @@ namespace erizo {
     opus.channels = 2;
     opus.mediaType = AUDIO_TYPE;
     internalPayloadVector_.push_back(opus);
-/*
+
     RtpMap isac16;
     isac16.payloadType = ISAC_16000_PT;
     isac16.encodingName = "ISAC";
@@ -94,7 +95,7 @@ namespace erizo {
     pcmu.channels = 1;
     pcmu.mediaType = AUDIO_TYPE;
     internalPayloadVector_.push_back(pcmu);
-
+/*
     RtpMap pcma;
     pcma.payloadType = PCMA_8000_PT;
     pcma.encodingName = "PCMA";
@@ -164,8 +165,10 @@ namespace erizo {
   std::string SdpInfo::getSdp() {
     char msidtemp [10];
     gen_random(msidtemp,10);
+    printf("[sdpinfo] getSdp\n");
 
     ELOG_DEBUG("Getting SDP");
+    
 
     std::ostringstream sdp;
     sdp << "v=0\n" << "o=- 0 0 IN IP4 127.0.0.1\n" << "s=\n" << "t=0 0\n";
@@ -179,6 +182,7 @@ namespace erizo {
 
     for (unsigned int it = 0; it < candidateVector_.size(); it++) {
       const CandidateInfo& cand = candidateVector_[it];
+      
       std::string hostType_str;
       switch (cand.hostType) {
         case HOST:
@@ -201,6 +205,7 @@ namespace erizo {
       if (cand.mediaType == AUDIO_TYPE) {
         if (!printedAudio) {
           sdp << "m=audio " << cand.hostPort
+          
             << " RTP/" << (profile==SAVPF?"SAVPF ":"AVPF ");// << "103 104 0 8 106 105 13 126\n"
           for (unsigned int it =0; it<internalPayloadVector_.size(); it++){
             const RtpMap& payload_info = internalPayloadVector_[it];
@@ -221,6 +226,7 @@ namespace erizo {
         std::string generation = " generation 0";
 
         int comps = cand.componentId;
+        
         if (isRtcpMux) {
           comps++;
         }

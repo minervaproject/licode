@@ -14,6 +14,7 @@ Erizo.ChromeStableStack = function (spec) {
     };
     that.maxVideoBW = spec.maxVideoBW;
     that.maxAudioBW = spec.maxAudioBW;
+    that.audioCodec = spec.audioCodec;
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
@@ -98,6 +99,26 @@ Erizo.ChromeStableStack = function (spec) {
 
         return sdp;
     };
+
+    var setAudioCodec = function(sdp) {
+        var temp;
+        if (that.audioCodec) {
+            if (that.audioCodec !== "opus/48000/2") {
+                temp = sdp.match(".*opus.*\r\na=fmtp.*\r\n");
+                sdp = sdp.replace(temp, "");
+            }
+            if (that.audioCodec !== "ISAC/32000") {
+                temp = sdp.match(".*ISAC/32000\r\n");
+                sdp = sdp.replace(temp, "");
+            }
+            if (that.audioCodec !== "ISAC/16000") {
+                temp = sdp.match(".*ISAC/16000\r\n");
+                sdp = sdp.replace(temp, "");
+            }
+        }
+        return sdp;
+    };
+
 
     /**
      * This function processes signalling messages from the other side.
@@ -256,6 +277,8 @@ Erizo.ChromeStableStack = function (spec) {
                     //sessionDescription.sdp = newOffer.replace(/a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:.*\r\n/g, "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:eUMxlV2Ib6U8qeZot/wEKHw9iMzfKUYpOPJrNnu3\r\n");
 
                     sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+                    sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
+
                     L.Logger.debug("Changed", sessionDescription.sdp);
 
                     var newOffer = sessionDescription.sdp;
