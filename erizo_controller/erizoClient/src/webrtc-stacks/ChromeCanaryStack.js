@@ -15,6 +15,8 @@ Erizo.ChromeCanaryStack = function (spec) {
     that.maxVideoBW = spec.maxVideoBW;
     that.maxAudioBW = spec.maxAudioBW;
     that.audioCodec = spec.audioCodec;
+    that.audioHz = spec.audioHz;
+    that.audioBitrate = spec.audioBitrate;    
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
@@ -104,9 +106,24 @@ Erizo.ChromeCanaryStack = function (spec) {
     var setAudioCodec = function(sdp) {
         var temp;
         if (that.audioCodec) {
-            if (that.audioCodec !== "opus/48000/2") {
+            if (that.audioCodec !== "opus") {
                 temp = sdp.match(".*opus.*\r\na=fmtp.*\r\n");
                 sdp = sdp.replace(temp, "");
+            } else {
+                console.log("****** OPUS *****");
+                if (that.audioHz) {
+                    temp = sdp.match(".*opus.*\r\na=fmtp.*");
+                    console.log("***** HZ: ", temp);
+                    sdp = sdp.replace(temp, temp + 
+                        "; maxplaybackrate=" + that.audioHz + 
+                        "; sprop-maxcapturerate=" + that.audioHz);
+                    console.log("CHANGED HZ", sdp);
+                }
+                if (that.audioBitrate) {
+                    temp = sdp.match(".*opus.*\r\na=fmtp.*");
+                    sdp = sdp.replace(temp, temp + 
+                        "; maxaveragebitrate=" + that.audioBitrate);                    
+                }
             }
             if (that.audioCodec !== "ISAC/32000") {
                 temp = sdp.match(".*ISAC/32000\r\n");

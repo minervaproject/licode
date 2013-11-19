@@ -342,7 +342,9 @@ Erizo.Room = function (spec) {
                             };
                             stream.pc.processSignalingMessage(answer);
                         });
-                    }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, audioCodec: options.audioCodec});
+                    }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, 
+                    maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, 
+                    audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate});
 
                     stream.pc.addStream(stream.stream);
                 }
