@@ -165,8 +165,7 @@ namespace erizo {
   std::string SdpInfo::getSdp() {
     char msidtemp [10];
     gen_random(msidtemp,10);
-    printf("[sdpinfo] getSdp\n");
-
+    
     ELOG_DEBUG("Getting SDP");
     
 
@@ -182,7 +181,6 @@ namespace erizo {
 
     for (unsigned int it = 0; it < candidateVector_.size(); it++) {
       const CandidateInfo& cand = candidateVector_[it];
-      
       std::string hostType_str;
       switch (cand.hostType) {
         case HOST:

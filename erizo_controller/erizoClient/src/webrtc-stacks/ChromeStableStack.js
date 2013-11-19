@@ -15,8 +15,8 @@ Erizo.ChromeStableStack = function (spec) {
     that.maxVideoBW = spec.maxVideoBW;
     that.maxAudioBW = spec.maxAudioBW;
     that.audioCodec = spec.audioCodec;
-    that.audioHz = spec.audioHz;
-    that.audioBitrate = spec.audioBitrate;
+    that.opusHz = spec.opusHz;
+    that.opusBitrate = spec.opusBitrate;
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
@@ -109,16 +109,16 @@ Erizo.ChromeStableStack = function (spec) {
                 temp = sdp.match(".*opus.*\r\na=fmtp.*\r\n");
                 sdp = sdp.replace(temp, "");
             } else {
-                if (that.audioHz) {
+                if (that.opusHz) {
                     temp = sdp.match(".*opus.*\r\na=fmtp.*");
                     sdp = sdp.replace(temp, temp + 
-                        "; maxplaybackrate=" + that.audioHz + 
-                        "; sprop-maxcapturerate=" + that.audioHz);
+                        "; maxplaybackrate=" + that.opusHz + 
+                        "; sprop-maxcapturerate=" + that.opusHz);
                 }
-                if (that.audioBitrate) {
+                if (that.opusBitrate) {
                     temp = sdp.match(".*opus.*\r\na=fmtp.*");
                     sdp = sdp.replace(temp, temp + 
-                        "; maxaveragebitrate=" + that.audioBitrate);                    
+                        "; maxaveragebitrate=" + that.opusBitrate);                    
                 }
             }
             if (that.audioCodec !== "ISAC/32000") {
