@@ -1,0 +1,42 @@
+How the heck does Licode work:
+
+basicServer:
+  server
+    /createToken
+    /getRooms
+    /getUsers/:room
+    creates one room by default
+
+    listens on 3001
+    https on 3004
+
+  client
+
+    local stream
+    creates token with /createToken
+      passes userName and role
+      calls Erizo.Room with token
+      asks user for access to media
+      on createToken => Erizo::roomConnected
+        Erizo::Room.publish and subscribe to streams
+        on Erizo::streamSubscribed
+          create div!
+
+
+
+
+
+/socket.io goes to erizo ()
+
+
+example token:
+eyJ0b2tlbklkIjoiNTI4ZDZjMGFkYWM0Nzg1ZDI1MDAwMDAyIiwiaG9zdCI6ImF2LWxvY2FsLm1pbmVydmFwcm9qZWN0LmNvbTo0NDMiLCJzaWduYXR1cmUiOiJabU0zWWprNFltWXpZbVE0TkdSbE1EbGpaRGc1TmpNNU9UVXpORFF4Wm1Nd01qRTJZelkxWmc9PSJ9
+
+var token = "eyJ0b2tlbklkIjoiNTI4ZDZjMGFkYWM0Nzg1ZDI1MDAwMDAyIiwiaG9zdCI6ImF2LWxvY2FsLm1pbmVydmFwcm9qZWN0LmNvbTo0NDMiLCJzaWduYXR1cmUiOiJabU0zWWprNFltWXpZbVE0TkdSbE1EbGpaRGc1TmpNNU9UVXpORFF4Wm1Nd01qRTJZelkxWmc9PSJ9"
+
+L.Base64.decodeBase64(token);
+
+
+var tokenData = {"tokenId":"528d6c0adac4785d25000002","host":"av-local.minervaproject.com:443","signature":"ZmM3Yjk4YmYzYmQ4NGRlMDljZDg5NjM5OTUzNDQxZmMwMjE2YzY1Zg=="};
+
+var token2 = L.Base64.encodeBase64(JSON.stringify(tokenData));

@@ -18,14 +18,22 @@ Erizo.ChromeCanaryStack = function (spec) {
         that.pc_config.iceServers.push({"url": spec.stunServerUrl});
     }
 
-    if (spec.turnServer !== undefined) {
+    if ((spec.turnServer || {}).url) {
         that.pc_config.iceServers.push({"username": spec.turnServer.username, "credential": spec.turnServer.password, "url": spec.turnServer.url});
+    }
+
+    if (spec.audio === undefined || spec.nop2p) {
+        spec.audio = true;
+    }
+
+    if (spec.video === undefined || spec.nop2p) {
+        spec.video = true;
     }
 
     that.mediaConstraints = {
         'mandatory': {
-            'OfferToReceiveVideo': 'true',
-            'OfferToReceiveAudio': 'true'
+            'OfferToReceiveVideo': spec.video,
+            'OfferToReceiveAudio': spec.audio
         }
     };
 
@@ -54,22 +62,6 @@ Erizo.ChromeCanaryStack = function (spec) {
     };
 
     //L.Logger.debug("Created webkitRTCPeerConnnection with config \"" + JSON.stringify(that.pc_config) + "\".");
-
-    var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
-            var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
-            sdp = sdp.replace(a[0], r);
-        }
-
-        if (spec.maxAudioBW) {
-            var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
-            sdp = sdp.replace(a[0], r);
-        }
-
-        return sdp;
-    };
 
     var setMaxBW = function (sdp) {
         if (spec.maxVideoBW) {

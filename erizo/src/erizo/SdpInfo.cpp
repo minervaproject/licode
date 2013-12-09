@@ -47,14 +47,6 @@ namespace erizo {
     vp8.mediaType = VIDEO_TYPE;
     internalPayloadVector_.push_back(vp8);
 
-/*    RtpMap ulpfec;
-    ulpfec.payloadType = ULP_90000_PT;
-    ulpfec.encodingName = "ulpfec";
-    ulpfec.clockRate = 90000;
-    ulpfec.channels = 1;
-    ulpfec.mediaType = VIDEO_TYPE;
-    internalPayloadVector_.push_back(ulpfec);
-
     RtpMap red;
     red.payloadType = RED_90000_PT;
     red.encodingName = "red";
@@ -63,6 +55,14 @@ namespace erizo {
     red.mediaType = VIDEO_TYPE;
     internalPayloadVector_.push_back(red);
 
+    RtpMap ulpfec;
+    ulpfec.payloadType = ULP_90000_PT;
+    ulpfec.encodingName = "ulpfec";
+    ulpfec.clockRate = 90000;
+    ulpfec.channels = 1;
+    ulpfec.mediaType = VIDEO_TYPE;
+    internalPayloadVector_.push_back(ulpfec);
+/*
     RtpMap opus;
     opus.payloadType = OPUS_48000_PT;
     opus.encodingName = "opus";
@@ -162,7 +162,7 @@ namespace erizo {
   }
 
   std::string SdpInfo::getSdp() {
-    char* msidtemp = static_cast<char*>(malloc(10));
+    char msidtemp [10];
     gen_random(msidtemp,10);
 
     ELOG_DEBUG("Getting SDP");
@@ -224,7 +224,7 @@ namespace erizo {
         if (isRtcpMux) {
           comps++;
         }
-        for (int idx = 1; idx <= comps; idx++) {
+        for (int idx = cand.componentId; idx <= comps; idx++) {
           sdp << "a=candidate:" << cand.foundation << " " << idx
               << " " << cand.netProtocol << " " << cand.priority << " "
               << cand.hostAddress << " " << cand.hostPort << " typ "
@@ -275,6 +275,9 @@ namespace erizo {
             sdp << "a=fmtp:"<< rtp.payloadType<<" minptime=10\n";
           }
         }
+      }
+      if (audioSsrc == 0) {
+        audioSsrc = 44444;
       }
       sdp << "a=maxptime:60" << endl;
       sdp << "a=ssrc:" << audioSsrc << " cname:o/i14u9pJrxRKAsu" << endl<<
@@ -327,7 +330,7 @@ namespace erizo {
         if (isRtcpMux) {
           comps++;
         }
-        for (int idx = 1; idx <= comps; idx++) {
+        for (int idx = cand.componentId; idx <= comps; idx++) {
           sdp << "a=candidate:" << cand.foundation << " " << idx
               << " " << cand.netProtocol << " " << cand.priority << " "
               << cand.hostAddress << " " << cand.hostPort << " typ "
@@ -375,17 +378,18 @@ namespace erizo {
           sdp << "a=rtpmap:"<<rtp.payloadType << " " << rtp.encodingName << "/"
               << rtp.clockRate <<"\n";
           if(rtp.encodingName == "VP8"){
-            sdp << "a=rtcp-fb:"<< rtp.payloadType<<" ccm fir\na=rtcp-fb:"<< rtp.payloadType<<" nack\n";
+            sdp << "a=rtcp-fb:"<< rtp.payloadType<<" ccm fir\na=rtcp-fb:"<< rtp.payloadType<<" nack\na=rtcp-fb:" << rtp.payloadType<<" goog-remb\n" ;
           }
         }
       }
-
+      if (videoSsrc == 0) {
+        videoSsrc = 55543;
+      }
       sdp << "a=ssrc:" << videoSsrc << " cname:o/i14u9pJrxRKAsu" << endl<<
         "a=ssrc:"<< videoSsrc << " msid:"<< msidtemp << " v0"<< endl<<
         "a=ssrc:"<< videoSsrc << " mslabel:"<< msidtemp << endl<<
         "a=ssrc:"<< videoSsrc << " label:" << msidtemp <<"v0"<<endl;
     }
-    free (msidtemp);
     ELOG_DEBUG("sdp local \n %s",sdp.str().c_str());
     return sdp.str();
   }
@@ -426,10 +430,10 @@ namespace erizo {
 
     std::string strLine;
     std::istringstream iss(sdp);
-    char* line = (char*) malloc(1000);
-    char** pieces = (char**) malloc(10000);
-    char** cryptopiece = (char**) malloc(5000);
 
+    char line[500];
+    char* pieces[100];
+    char* cryptopiece[100];
     MediaType mtype = OTHER;
 
     while (std::getline(iss, strLine)) {
@@ -562,10 +566,6 @@ namespace erizo {
       }
 
     }
-
-    free(line);
-    free(pieces);
-    free(cryptopiece);
 
     for (unsigned int i = 0; i < candidateVector_.size(); i++) {
       CandidateInfo& c = candidateVector_[i];
