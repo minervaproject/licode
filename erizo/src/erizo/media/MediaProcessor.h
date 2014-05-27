@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <string>
 
-#include "rtp/RtpParser.h"
+#include "rtp/RtpVP8Parser.h"
 #include "../MediaDefinitions.h"
 #include "codecs/Codecs.h"
 #include "codecs/VideoCodec.h"
@@ -28,7 +28,7 @@ struct RTPInfo {
 };
 
 enum ProcessorType {
-	RTP_ONLY, AVF
+	RTP_ONLY, AVF, PACKAGE_ONLY
 };
 
 enum DataType {
@@ -45,7 +45,7 @@ struct MediaInfo {
 	std::string url;
 	bool hasVideo;
 	bool hasAudio;
-	ProcessorType proccessorType;
+	ProcessorType processorType;
 	RTPInfo rtpVideoInfo;
 	RTPInfo rtpAudioInfo;
 	VideoCodecInfo videoCodec;
@@ -81,7 +81,7 @@ public:
 
 class RTPSink;
 
-class InputProcessor: MediaSink {
+class InputProcessor: public MediaSink {
 	DECLARE_LOGGER();
 public:
 	InputProcessor();
@@ -89,8 +89,6 @@ public:
 
 	int init(const MediaInfo& info, RawDataReceiver* receiver);
 
-	int deliverAudioData(char* buf, int len);
-	int deliverVideoData(char* buf, int len);
 
 	int unpackageVideo(unsigned char* inBuff, int inBuffLen,
 			unsigned char* outBuff, int* gotFrame, int* estimatedFps);
@@ -118,6 +116,7 @@ private:
 
 	unsigned char* decodedBuffer_;
 	unsigned char* unpackagedBuffer_;
+    unsigned char* unpackagedBufferPtr_;
 
 	unsigned char* decodedAudioBuffer_;
 	unsigned char* unpackagedAudioBuffer_;
@@ -128,7 +127,7 @@ private:
 
 	AVFormatContext* aInputFormatContext;
 	AVInputFormat* aInputFormat;
-  VideoDecoder vDecoder;
+   VideoDecoder vDecoder;
 
 	RTPInfo* vRTPInfo;
 
@@ -137,12 +136,14 @@ private:
 
 	RawDataReceiver* rawReceiver_;
 
-	erizo::RtpParser pars;
+	erizo::RtpVP8Parser pars;
 
 	bool initAudioDecoder();
 
 	bool initAudioUnpackager();
 	bool initVideoUnpackager();
+	int deliverAudioData_(char* buf, int len);
+	int deliverVideoData_(char* buf, int len);
 
 	int decodeAudio(unsigned char* inBuff, int inBuffLen,
 			unsigned char* outBuff);
@@ -158,6 +159,12 @@ public:
   void close();
 	void receiveRawData(RawDataPacket& packet);
 
+  int packageAudio(unsigned char* inBuff, int inBuffLen,
+			unsigned char* outBuff, long int pts = 0);
+
+	int packageVideo(unsigned char* inBuff, int buffSize, unsigned char* outBuff,
+      long int pts = 0);
+
 private:
 
 	int audioCoder;
@@ -167,6 +174,7 @@ private:
 	int videoPackager;
 
 	unsigned int seqnum_;
+  unsigned int audioSeqnum_;
 
 	unsigned long timestamp_;
 
@@ -176,7 +184,6 @@ private:
 
 	unsigned char* encodedAudioBuffer_;
 	unsigned char* packagedAudioBuffer_;
-	unsigned char* rtpAudioBuffer_;
 
 	MediaInfo mediaInfo;
 
@@ -197,7 +204,7 @@ private:
 	AVFormatContext* vOutputFormatContext;
 	AVOutputFormat* vOutputFormat;
 
-	RtpParser pars;
+	RtpVP8Parser pars;
 
 	bool initAudioCoder();
 
@@ -207,10 +214,6 @@ private:
 	int encodeAudio(unsigned char* inBuff, int nSamples,
 			AVPacket* pkt);
 
-	int packageAudio(unsigned char* inBuff, int inBuffLen,
-			unsigned char* outBuff);
-
-	int packageVideo(unsigned char* inBuff, int buffSize, unsigned char* outBuff);
 };
 } /* namespace erizo */
 

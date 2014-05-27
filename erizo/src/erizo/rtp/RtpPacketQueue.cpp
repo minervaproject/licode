@@ -1,13 +1,13 @@
 #include <cstring>
 
 #include "RtpPacketQueue.h"
-#include "../../MediaDefinitions.h"
-#include "RtpHeader.h"
+#include "../MediaDefinitions.h"
+#include "RtpHeaders.h"
 
 
 namespace erizo{
 
-  DEFINE_LOGGER(RtpPacketQueue, "RtpPacketQueue");
+  DEFINE_LOGGER(RtpPacketQueue, "rtp.RtpPacketQueue");
 
   RtpPacketQueue::RtpPacketQueue()
     : lastNseq_(0), lastTs_(0)
@@ -22,7 +22,7 @@ namespace erizo{
   void RtpPacketQueue::pushPacket(const char *data, int length)
   {
 
-    const RTPHeader *header = reinterpret_cast<const RTPHeader*>(data);
+    const RtpHeader *header = reinterpret_cast<const RtpHeader*>(data);
     uint16_t nseq = header->getSeqNumber();
     uint32_t ts = header->getTimestamp();
 
@@ -49,6 +49,7 @@ namespace erizo{
       lastNseq_ = nseq;
       lastTs_ = ts;
       cleanQueue();
+      enqueuePacket(data, length, nseq);
     }
     else if (nseqdiff > 1)
     {
@@ -100,7 +101,7 @@ namespace erizo{
     if (packet.get() == NULL){
       return packet;
     }
-    const RTPHeader *header = reinterpret_cast<const RTPHeader*>(packet->data);
+    const RtpHeader *header = reinterpret_cast<const RtpHeader*>(packet->data);
     lastNseq_ = queue_.begin()->first;
     lastTs_ = header->getTimestamp();
     queue_.erase(queue_.begin());

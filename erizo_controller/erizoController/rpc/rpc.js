@@ -2,9 +2,12 @@ var sys = require('util');
 var amqp = require('amqp');
 var rpcPublic = require('./rpcPublic');
 var config = require('./../../../licode_config');
-var logger = require('./../logger').logger;
+var logger = require('./../../common/logger').logger;
 
-var TIMEOUT = 2000;
+var TIMEOUT = 5000;
+
+// This timeout shouldn't be too low because it won't listen to onReady responses from ErizoJS
+var REMOVAL_TIMEOUT = 30000;
 
 var corrID = 0;
 var map = {};	//{corrID: {fn: callback, to: timeout}}
@@ -41,8 +44,10 @@ exports.connect = function(callback) {
 
 			  		if(map[message.corrID] !== undefined) {
 			  			clearTimeout(map[message.corrID].to);
-						map[message.corrID].fn(message.data);
-						delete map[message.corrID];
+						map[message.corrID].fn[message.type](message.data);
+						setTimeout(function() {
+							if (map[message.corrID] !== undefined) delete map[message.corrID];
+						}, REMOVAL_TIMEOUT);
 					}
 			  	});
 
@@ -76,20 +81,21 @@ exports.bind = function(id, callback) {
 /*
  * Calls remotely the 'method' function defined in rpcPublic of 'to'.
  */
-exports.callRpc = function(to, method, args, callback) {
+exports.callRpc = function(to, method, args, callbacks) {
 
 	corrID ++;
 	map[corrID] = {};
-	map[corrID].fn = callback;
+	map[corrID].fn = callbacks;
 	map[corrID].to = setTimeout(callbackError, TIMEOUT, corrID);
 
-	var send = {method: method, args: args, corrID: corrID, replyTo: clientQueue.name };
-
- 	exc.publish(to, send);
+	exc.publish(to, {method: method, args: args, corrID: corrID, replyTo: clientQueue.name});
 
 }
 
+
 var callbackError = function(corrID) {
-	map[corrID].fn('timeout');
+	for (var i in map[corrID].fn) {
+		map[corrID].fn[i]('timeout');
+	}
 	delete map[corrID];
 }

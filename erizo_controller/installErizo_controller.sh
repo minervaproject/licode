@@ -8,7 +8,7 @@ npm install --loglevel debug amqp@0.2.0 socket.io@0.9.16 winston@0.7.3
 
 echo [erizo_controller] Done, node_modules installed
 
-cd ../erizoClient/tools
+cd ./erizoClient/tools
 
 ./compile.sh
 ./compilefc.sh

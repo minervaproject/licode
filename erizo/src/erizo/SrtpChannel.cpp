@@ -31,9 +31,11 @@ SrtpChannel::~SrtpChannel() {
   active_ = false;
   if (send_session_ != NULL) {
     srtp_dealloc(send_session_);
+    send_session_ = NULL;
   }
   if (receive_session_ != NULL) {
     srtp_dealloc(receive_session_);
+    receive_session_ = NULL;
   }
 }
 
@@ -60,8 +62,8 @@ int SrtpChannel::protectRtp(char* buffer, int *len) {
     if (val == 0) {
         return 0;
     } else {
-        rtcpheader* head = reinterpret_cast<rtcpheader*>(buffer);
-        rtpheader* headrtp = reinterpret_cast<rtpheader*>(buffer);
+        RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
+        RtpHeader* headrtp = reinterpret_cast<RtpHeader*>(buffer);
 
         ELOG_WARN("Error SrtpChannel::protectRtp %u packettype %d pt %d seqnum %u", val,head->packettype, headrtp->payloadtype, headrtp->seqnum);
         return -1;
@@ -76,10 +78,10 @@ int SrtpChannel::unprotectRtp(char* buffer, int *len) {
     if (val == 0) {
         return 0;
     } else {
-    rtcpheader* head = reinterpret_cast<rtcpheader*>(buffer);
-    rtpheader* headrtp = reinterpret_cast<rtpheader*>(buffer);
-        ELOG_WARN("Error SrtpChannel::unprotectRtp %u packettype %d pt %d", val,head->packettype, headrtp->payloadtype);
-        return -1;
+      RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
+      RtpHeader* headrtp = reinterpret_cast<RtpHeader*>(buffer);
+      ELOG_WARN("Error SrtpChannel::unprotectRtp %u packettype %d pt %d", val,head->packettype, headrtp->payloadtype);
+      return -1;
     }
 }
 
@@ -89,7 +91,7 @@ int SrtpChannel::protectRtcp(char* buffer, int *len) {
     if (val == 0) {
         return 0;
     } else {
-        rtcpheader* head = reinterpret_cast<rtcpheader*>(buffer);
+        RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
         ELOG_WARN("Error SrtpChannel::protectRtcp %upackettype %d ", val, head->packettype);
         return -1;
     }

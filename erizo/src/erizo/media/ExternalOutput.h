@@ -26,8 +26,6 @@ namespace erizo{
       ExternalOutput(const std::string& outputUrl);
       virtual ~ExternalOutput();
       bool init();
-	    int deliverAudioData(char* buf, int len);
-	    int deliverVideoData(char* buf, int len);
       void receiveRawData(RawDataPacket& packet);
 
     private:
@@ -35,10 +33,9 @@ namespace erizo{
       RtpPacketQueue audioQueue_, videoQueue_;
       unsigned char* decodedBuffer_;
       char* sendVideoBuffer_;
-      
-
       std::string url;
-      volatile bool sending_;
+      bool sending_;
+      bool hasVideo_;
 	    boost::mutex queueMutex_;
       boost::thread thread_;
     	boost::condition_variable cond_;
@@ -58,7 +55,7 @@ namespace erizo{
       AVOutputFormat *oformat_;
       AVCodec *videoCodec_, *audioCodec_; 
       AVCodecContext *videoCodecCtx_, *audioCodecCtx_;
-      InputProcessor *in;
+      InputProcessor *in_;
 
       AVPacket avpacket;
       unsigned char* unpackagedBufferpart_;
@@ -72,6 +69,8 @@ namespace erizo{
       int sendFirPacket();
       void queueData(char* buffer, int length, packetType type);
       void sendLoop();
+	    int deliverAudioData_(char* buf, int len);
+	    int deliverVideoData_(char* buf, int len);
 	    int writeAudioData(char* buf, int len);
 	    int writeVideoData(char* buf, int len);
   };

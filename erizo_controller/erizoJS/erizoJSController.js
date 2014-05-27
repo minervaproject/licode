@@ -1,10 +1,11 @@
-/*global require, exports, console, setInterval, clearInterval*/
+/*global require, exports, , setInterval, clearInterval*/
 
 var addon = require('./../../erizoAPI/build/Release/addon');
 var config = require('./../../licode_config');
-var logger = require('./logger').logger;
+var logger = require('./../common/logger').logger;
+var rpc = require('./../common/rpc');
 
-exports.WebRtcController = function () {
+exports.ErizoJSController = function (spec) {
     "use strict";
 
     var that = {},
@@ -18,6 +19,7 @@ exports.WebRtcController = function () {
 
         INTERVAL_TIME_SDP = 100,
         INTERVAL_TIME_FIR = 100,
+        INTERVAL_TIME_KILL = 30*60*1000, // Timeout to kill itself after a timeout since the publisher leaves room.
         waitForFIR,
         initWebRtcConnection,
         getSdp,
@@ -32,7 +34,7 @@ exports.WebRtcController = function () {
         if (publishers[to] !== undefined) {
             var intervarId = setInterval(function () {
               if (publishers[to]!==undefined){
-                if (wrtc.getCurrentState() >= 2 && publishers[to].getPublisherState() >=2) {
+                if (wrtc.getCurrentState() >= 103 && publishers[to].getPublisherState() >=103) {
                     publishers[to].sendFIR();
                     clearInterval(intervarId);
                 }
@@ -45,41 +47,34 @@ exports.WebRtcController = function () {
     /*
      * Given a WebRtcConnection waits for the state CANDIDATES_GATHERED for set remote SDP. 
      */
-    initWebRtcConnection = function (wrtc, sdp, callback, onReady) {
+    initWebRtcConnection = function (wrtc, sdp, callback, id_pub, id_sub) {
 
-        wrtc.init();
+        if (config.erizoController.sendStats) {
+            wrtc.getStats(function (newStats){
+                rpc.callRpc('stats_handler', 'stats', {pub: id_pub, subs: id_sub, stats: JSON.parse(newStats)});
+            });
+        }
+
+        wrtc.init( function (newStatus){
+          var localSdp, answer;
+          logger.info("webrtc Addon status" + newStatus );
+          if (newStatus === 102 && !sdpDelivered) {
+            localSdp = wrtc.getLocalSdp();
+            answer = getRoap(localSdp, roap);
+            callback('callback', answer);
+            sdpDelivered = true;
+
+          }
+          if (newStatus === 103) {
+            callback('onReady');
+          }
+        });
 
         var roap = sdp,
             remoteSdp = getSdp(roap);
-
         wrtc.setRemoteSdp(remoteSdp);
 
         var sdpDelivered = false;
-
-        var intervarId = setInterval(function () {
-
-                var state = wrtc.getCurrentState(), localSdp, answer;
-
-                if (state == 1 && !sdpDelivered) {
-                    localSdp = wrtc.getLocalSdp();
-
-                    answer = getRoap(localSdp, roap);
-                    callback(answer);
-                    sdpDelivered = true;
-
-                }
-                if (state == 2) {
-                    if (onReady != undefined) {
-                        onReady();
-                    }
-                }
-
-                if (state >= 2) {
-                    clearInterval(intervarId);
-                }
-
-
-            }, INTERVAL_TIME_SDP);
     };
 
     /*
@@ -139,9 +134,9 @@ exports.WebRtcController = function () {
             var answer = ei.init();
 
             if (answer >= 0) {
-                callback('success');
+                callback('callback', 'success');
             } else {
-                callback(answer);
+                callback('callback', answer);
             }
 
         } else {
@@ -157,7 +152,6 @@ exports.WebRtcController = function () {
             publishers[to].addExternalOutput(externalOutput, url);
             externalOutputs[url] = externalOutput;
         }
-
     };
 
     that.removeExternalOutput = function (to, url) {
@@ -173,7 +167,7 @@ exports.WebRtcController = function () {
      * and a new WebRtcConnection. This WebRtcConnection will be the publisher
      * of the OneToManyProcessor.
      */
-    that.addPublisher = function (from, sdp, callback, onReady) {
+    that.addPublisher = function (from, sdp, callback) {
 
         if (publishers[from] === undefined) {
 
@@ -190,7 +184,7 @@ exports.WebRtcController = function () {
             wrtc.setVideoReceiver(muxer);
             muxer.setPublisher(wrtc);
 
-            initWebRtcConnection(wrtc, sdp, callback, onReady);
+            initWebRtcConnection(wrtc, sdp, callback, from);
 
             //logger.info('Publishers: ', publishers);
             //logger.info('Subscribers: ', subscribers);
@@ -221,17 +215,14 @@ exports.WebRtcController = function () {
 
         if (publishers[to] !== undefined && subscribers[to].indexOf(from) === -1 && sdp.match('OFFER') !== null) {
 
-            logger.info("Adding subscriber from ", from, 'to ', to);
-
-            if (audio === undefined) audio = true;
-            if (video === undefined) video = true;
+            logger.info("Adding subscriber from ", from, 'to ', to, 'audio', audio, 'video', video);
 
             var wrtc = new addon.WebRtcConnection(audio, video, config.erizo.stunserver, config.erizo.stunport, config.erizo.minport, config.erizo.maxport);
 
             subscribers[to].push(from);
             publishers[to].addSubscriber(wrtc, from);
 
-            initWebRtcConnection(wrtc, sdp, callback);
+            initWebRtcConnection(wrtc, sdp, callback, to, from);
 //            waitForFIR(wrtc, to);
 
             //logger.info('Publishers: ', publishers);
@@ -251,7 +242,17 @@ exports.WebRtcController = function () {
             delete subscribers[from];
             logger.info('Removing publisher', from);
             delete publishers[from];
-            logger.info('Removed all');
+            var count = 0;
+            for (var k in publishers) {
+                if (publishers.hasOwnProperty(k)) {
+                   ++count;
+                }
+            }
+            logger.info("Publishers: ", count);
+            if (count === 0)  {
+                logger.info('Removed all publishers. Killing process.');
+                process.exit(0);
+            }
         }
     };
 

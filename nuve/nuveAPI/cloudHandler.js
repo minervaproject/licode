@@ -82,9 +82,9 @@ exports.addNewErizoController = function (msg, callback) {
     "use strict";
 
     if (msg.cloudProvider === '') {
-        addNewPrivateErizoController(msg.ip, callback);
+        addNewPrivateErizoController(msg.ip, msg.hostname, msg.port, msg.ssl, callback);
     } else if (msg.cloudProvider === 'amazon') {
-        addNewAmazonErizoController(msg.ip, callback);
+        addNewAmazonErizoController(msg.ip, msg.hostname, msg.port, msg.ssl, callback);
     }
     
 };
@@ -117,20 +117,28 @@ var addNewAmazonErizoController = function(privateIP, callback) {
         } else if (response) {
             publicIP = response.reservationSet.item.instancesSet.item.ipAddress;
             console.log('public IP: ', publicIP);
-            addNewPrivateErizoController(publicIP, callback);
+            addNewPrivateErizoController(publicIP, hostname, port, ssl, callback);
         }
     });
 }
 
-var addNewPrivateErizoController = function (ip, callback) {
+var addNewPrivateErizoController = function (ip, hostname, port, ssl, callback) {
     "use strict";
     idIndex += 1;
     var id = idIndex,
         rpcID = 'erizoController_' + id;
-    erizoControllers[id] = {ip: ip, rpcID: rpcID, state: 2, keepAlive: 0};
+    erizoControllers[id] = {
+        ip: ip,
+        rpcID: rpcID,
+        state: 2,
+        keepAlive: 0,
+        hostname: hostname,
+        port: port,
+        ssl: ssl
+    };
     console.log('New erizocontroller (', id, ') in: ', erizoControllers[id].ip);
     recalculatePriority();
-    callback({id: id, publicIP: ip});
+    callback({id: id, publicIP: ip, hostname: hostname, port: port, ssl: ssl});
 };
 
 exports.keepAlive = function (id, callback) {
@@ -198,12 +206,12 @@ exports.getUsersInRoom = function (roomId, callback) {
     }
 
     var rpcID = erizoControllers[rooms[roomId]].rpcID;
-    rpc.callRpc(rpcID, 'getUsersInRoom', roomId, function (users) {
+    rpc.callRpc(rpcID, 'getUsersInRoom', roomId, {"callback": function (users) {
         if (users === 'timeout') {
             users = '?';
         }
         callback(users);
-    });
+    }});
 };
 
 exports.deleteRoom = function (roomId, callback) {
@@ -215,7 +223,7 @@ exports.deleteRoom = function (roomId, callback) {
     }
 
     var rpcID = erizoControllers[rooms[roomId]].rpcID;
-    rpc.callRpc(rpcID, 'deleteRoom', roomId, function (result) {
+    rpc.callRpc(rpcID, 'deleteRoom', roomId, {"callback": function (result) {
         callback(result);
-    });
+    }});
 };
