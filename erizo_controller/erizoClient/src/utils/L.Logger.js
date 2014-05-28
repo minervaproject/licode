@@ -110,6 +110,7 @@ L.Logger = (function (L) {
         L.Logger.log.apply(L.Logger,[L.Logger.ERROR].concat(args));
     };
 
+    window.trace = trace;
     return {
         DEBUG: DEBUG,
         TRACE: TRACE,

@@ -195,7 +195,7 @@ exports.ErizoJSController = function (spec) {
     };
 
     that.renegotiate = function (from, sdp, callback, onReady) {
-        console.log("[webrtcController] renegotiate");
+        console.log("[ErizoJSController] renegotiate");
         var wrtc, roap, remoteSdp, localSdp, answer;
         wrtc = publishers[from + "-wrtc"];
         logger.info("Renegotiating peer_id", from, wrtc, wrtc.getCurrentState());
