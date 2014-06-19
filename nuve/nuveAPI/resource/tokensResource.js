@@ -5,6 +5,7 @@ var serviceRegistry = require('./../mdb/serviceRegistry');
 var dataBase = require('./../mdb/dataBase');
 var crypto = require('crypto');
 var cloudHandler = require('../cloudHandler');
+var config = require('./../../../licode_config');
 
 var currentService;
 var currentRoom;
@@ -122,14 +123,17 @@ var generateToken = function (callback) {
                 return;
             }
 
-            token.secure = ec.ssl;
+            token.host = config.minervaHost;
+            token.secure = false;
+            
+            /*token.secure = ec.ssl;
             if (ec.hostname !== '') {
                 token.host = ec.hostname;
             } else {
                 token.host = ec.ip;
             }
 
-            token.host += ':' + ec.port;
+            token.host += ':' + ec.port;*/
 
             tokenRegistry.addToken(token, function (id) {
 

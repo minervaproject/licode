@@ -15,28 +15,28 @@ config.nuve.superserviceKey = '_auto_generated_KEY_';
 config.nuve.testErizoController = 'localhost:8080';
 
 //Use undefined to run clients without Stun 
-config.erizoController.stunServerUrl = 'stun:stun.l.google.com:19302';
+var network_config  = require("./licode_config/network")
+
+config.erizoController.stunServerUrl = network_config.stunServerUrl;
 
 config.erizoController.defaultVideoBW = 300;
 config.erizoController.maxVideoBW = 300;
 
 //Public erizoController IP for websockets (useful when behind NATs)
 //Use '' to automatically get IP from the interface
-config.erizoController.publicIP = '';
-//Use '' to use the public IP address instead of a hostname
-config.erizoController.hostname = '';
-config.erizoController.port = 8080;
-//Use true if clients communicate with erizoController over SSL
-config.erizoController.ssl = false;
+config.erizoController.publicIP = network_config.publicIP;
 
 // Use the name of the inferface you want to bind to for websockets
 // config.erizoController.networkInterface = 'eth1'
 
 //Use undefined to run clients without Turn
-config.erizoController.turnServer = {};
-config.erizoController.turnServer.url = '';
-config.erizoController.turnServer.username = '';
-config.erizoController.turnServer.password = '';
+if(network_config.turnServerUrl) {
+  var turnServer = {};
+  config.erizoController.turnServer = turnServer;
+  turnServer.url = network_config.turnServerUrl;
+  turnServer.username = 'licode';
+  turnServer.password = 'licode';  
+}
 
 config.erizoController.warning_n_rooms = 15;
 config.erizoController.limit_n_rooms = 20;
@@ -48,14 +48,18 @@ config.erizo.stunserver = '';
 config.erizo.stunport = 0;
 
 //note, this won't work with all versions of libnice. With 0 all the available ports are used
-config.erizo.minport = 0;
-config.erizo.maxport = 0;
+config.erizo.minport = 63000;
+config.erizo.maxport = 63999;
 
-config.cloudProvider.name = '';
 //In Amazon Ec2 instances you can specify the zone host. By default is 'ec2.us-east-1a.amazonaws.com' 
 config.cloudProvider.host = '';
 config.cloudProvider.accessKey = '';
 config.cloudProvider.secretAccessKey = '';
+
+config.minervaHost = network_config.minervaHost;
+config.cloudProvider.publicIP = network_config.publicIP;
+
+config.cloudProvider.name = network_config.cloudProviderName;
 
 // Roles to be used by services
 config.roles = {"presenter":["publish", "subscribe", "record"], "viewer":["subscribe"]};
