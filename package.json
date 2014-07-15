@@ -15,7 +15,8 @@
     "karma-phantomjs-launcher": "~0.1.0",
     "karma": "~0.10.2",
     "karma-chrome-launcher": "~0.1.0",
-    "jasmine-node": "~1.11.0"
+    "jasmine-node": "~1.11.0",
+    "node-statsd": "0.0.7"
   },
   "contributors": [
     {

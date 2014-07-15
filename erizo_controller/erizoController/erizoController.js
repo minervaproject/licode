@@ -9,10 +9,30 @@ var io = require('socket.io').listen(server, {log:false});
 var config = require('./../../licode_config');
 var logger = require('./logger').logger;
 var Permission = require('./permission');
+var StatsD = require('node-statsd').StatsD;
+var stats_client = new StatsD({host: "metrics.minervaproject.com"});
 
 server.listen(8080);
 
 io.set('log level', 0);
+
+/****** instrument the socket with statsd ******/
+(function() {
+    var key_prefix = "licode." + config.erizoController.hostname + ".";
+    var orig = io.$emit;
+    io.$emit = function() {
+        stats_client.increment(key_prefix + arguments[0], function() {console.log("blahhhh", arguments);});
+        orig.apply(this, Array.prototype.slice.call(arguments));
+    };
+
+    io.on('connection', function(socket) {
+        var orig = socket.$emit;
+        socket.$emit = function() {
+            stats_client.increment(key_prefix + "socket." + arguments[0], function() {console.log("blahhh2", arguments);});
+            orig.apply(this, Array.prototype.slice.call(arguments));
+        };
+    });
+})();
 
 var nuveKey = config.nuve.superserviceKey;
 
