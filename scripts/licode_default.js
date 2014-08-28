@@ -116,7 +116,7 @@ config.cloudProvider.publicIP = network_config.publicIP;
 config.cloudProvider.name = network_config.cloudProviderName;
 
 // Roles to be used by services
-//config.roles = {"presenter":["publish", "subscribe", "record"], "viewer":["subscribe"]};
+config.roles = {"presenter":["publish", "subscribe", "record"], "viewer":["subscribe"]};
 
 /***** END *****/
 // Following lines are always needed.
