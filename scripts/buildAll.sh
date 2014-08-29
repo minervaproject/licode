@@ -10,6 +10,7 @@ CURRENT_DIR=`pwd`
 # Restart everything
 sudo supervisorctl stop nuve
 sudo supervisorctl stop erizo
+sudo supervisorctl stop erizo_agent
 sudo supervisorctl stop licode_basic_server
 
 
@@ -37,14 +38,14 @@ install_erizo_controller(){
 
   cd erizoClient/tools
 
-  sudo ./compile.sh
+  sudo ./compileDebug.sh
   sudo ./compilefc.sh
 
   echo [erizo_controller] Done, erizo.js compiled
   cd $CURRENT_DIR
 }
 
-# Build Erizo 
+# Build Erizo
 install_erizo
 install_erizo_api
 install_erizo_controller
@@ -68,5 +69,6 @@ sudo pkill node || echo "" # Just in case
 echo "Starting supervisor services"
 sudo supervisorctl start nuve
 sudo supervisorctl start erizo
+sudo supervisorctl start erizo_agent
 sudo supervisorctl start licode_basic_server
 
