@@ -72,7 +72,6 @@ Erizo.ChromeStableStack = function (spec) {
                 clearTimeout(that.moreIceTimeout);
             }
         } else {
-            var type = event.candidate.candidate.split(" ")[7];
             that.iceCandidateCount += 1;
         }
     };

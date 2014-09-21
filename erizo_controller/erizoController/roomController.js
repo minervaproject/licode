@@ -52,7 +52,6 @@ exports.RoomController = function (spec) {
             if(erizo_id === "timeout") {
                 throw new Error("Timeout in RPC call to createErizoJs for publisher" + publisher_id);
             }
-            log.debug("Answer for id ", erizo_id);
             erizos[publisher_id] = erizo_id;
             callback();
         }});
