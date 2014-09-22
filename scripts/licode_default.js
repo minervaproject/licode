@@ -47,7 +47,7 @@ config.erizoController.maxVideoBW = 300; //default value: 300
 
 //Public erizoController IP for websockets (useful when behind NATs)
 //Use '' to automatically get IP from the interface
-config.erizoController.publicIP = network_config.publicIP;
+config.erizoController.publicIP = host_config.publicIP;
 //Use '' to use the public IP address instead of a hostname
 config.erizoController.hostname = '';
 config.erizoController.port = 443;
@@ -60,15 +60,6 @@ config.minervaHost = host_config.publicHostname;
 
 // Use the name of the inferface you want to bind to for websockets
 // config.erizoController.networkInterface = 'eth1' // default value: undefined
-
-//Use undefined to run clients without Turn
-if(network_config.turnServerUrl) {
-  var turnServer = {};
-  config.erizoController.turnServer = turnServer;
-  turnServer.url = network_config.turnServerUrl;
-  turnServer.username = 'licode';
-  turnServer.password = 'licode';
-}
 
 config.erizoController.warning_n_rooms = 15; // default value: 15
 config.erizoController.limit_n_rooms = 20; // default value: 20
