@@ -11,12 +11,17 @@ Erizo.ChromeStableStack = function (spec) {
     that.pc_config = {
         "iceServers": []
     };
+    that.maxVideoBW = spec.maxVideoBW;
+    that.maxAudioBW = spec.maxAudioBW;
+    that.audioCodec = spec.audioCodec;
+    that.opusHz = spec.opusHz;
+    that.opusBitrate = spec.opusBitrate;
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
     if (spec.stunServerUrl !== undefined) {
         that.pc_config.iceServers.push({"url": spec.stunServerUrl});
-    } 
+    }
 
     if ((spec.turnServer || {}).url) {
         that.pc_config.iceServers.push({"username": spec.turnServer.username, "credential": spec.turnServer.password, "url": spec.turnServer.url});
@@ -71,20 +76,74 @@ Erizo.ChromeStableStack = function (spec) {
         }
     };
 
-    //L.Logger.debug("Created webkitRTCPeerConnnection with config \"" + JSON.stringify(that.pc_config) + "\".");
+    var setMaxBW = function (sdp) {
+        if (that.maxVideoBW) {
+            var a = sdp.match(/m=video.*\r\n/);
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
+        }
+
+        if (that.maxAudioBW) {
+            var a = sdp.match(/m=audio.*\r\n/);
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
+        }
+
+        return sdp;
+    };
 
     var setMaxBW = function (sdp) {
-        if (spec.maxVideoBW) {
+        if (that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
 
-        if (spec.maxAudioBW) {
+        if (that.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
             sdp = sdp.replace(a[0], r);
         }
+        return sdp;
+    };
+
+
+    var setAudioCodec = function(sdp) {
+        var temp;
+        if (that.audioCodec) {
+            if (that.audioCodec !== "opus") {
+                temp = sdp.match(".*opus.*\r\na=fmtp.*\r\n");
+                sdp = sdp.replace(temp, "");
+            } else {
+                if (that.opusHz) {
+                    temp = sdp.match(".*opus.*\r\na=fmtp.*");
+                    sdp = sdp.replace(temp, temp +
+                        "; maxplaybackrate=" + that.opusHz +
+                        "; sprop-maxcapturerate=" + that.opusHz);
+                }
+                if (that.opusBitrate) {
+                    temp = sdp.match(".*opus.*\r\na=fmtp.*");
+                    sdp = sdp.replace(temp, temp +
+                        "; maxaveragebitrate=" + that.opusBitrate);
+                }
+            }
+            if (that.audioCodec !== "ISAC/32000") {
+                temp = sdp.match(".*ISAC/32000\r\n");
+                sdp = sdp.replace(temp, "");
+            }
+            if (that.audioCodec !== "ISAC/16000") {
+                temp = sdp.match(".*ISAC/16000\r\n");
+                sdp = sdp.replace(temp, "");
+            }
+        }
+        return sdp;
+    };
+
+    var pruneIceCandidates = function(sdp) {
+
+        /* Remove all TCP candidates.  Who needs em?! */
+        var regExp = new RegExp(/a=candidate:\d+\s\d\stcp.+/g);
+        sdp = sdp.replace(regExp,"");
 
         return sdp;
     };
@@ -137,6 +196,7 @@ Erizo.ChromeStableStack = function (spec) {
                 L.Logger.debug("Received ANSWER: ", sd.sdp);
 
                 sd.sdp = setMaxBW(sd.sdp);
+                sd.sdp = setAudioCodec(sd.sdp);
 
                 that.peerConnection.setRemoteDescription(new RTCSessionDescription(sd));
                 that.sendOK();
