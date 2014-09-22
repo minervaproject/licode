@@ -1,4 +1,7 @@
-var config = {}
+var config = {};
+
+/* Read up host-specic network configuration */
+var host_config = require("./licode_config/host");
 
 /*********************************************************
  COMMON CONFIGURATION
@@ -15,7 +18,7 @@ config.logger.config_file = '../log4js_configuration.json'; //default value: "..
  It's used by Nuve and ErizoController
 **********************************************************/
 config.cloudProvider = {};
-config.cloudProvider.name = '';
+config.cloudProvider.name = host_config.cloudProviderName;
 //In Amazon Ec2 instances you can specify the zone host. By default is 'ec2.us-east-1a.amazonaws.com'
 config.cloudProvider.host = '';
 config.cloudProvider.accessKey = '';
@@ -36,9 +39,7 @@ config.nuve.testErizoController = 'localhost:8080'; // default value: 'localhost
 config.erizoController = {};
 
 //Use undefined to run clients without Stun
-var network_config  = require("./licode_config/network");
-
-config.erizoController.stunServerUrl = network_config.stunServerUrl;
+config.erizoController.stunServerUrl = 'stun:stun.l.google.com:19302'; // default value: 'stun:stun.l.google.com:19302'
 
 // Default and max video bandwidth parameters to be used by clients
 config.erizoController.defaultVideoBW = 300; //default value: 300
@@ -52,6 +53,10 @@ config.erizoController.hostname = '';
 config.erizoController.port = 443;
 //Use true if clients communicate with erizoController over SSL
 config.erizoController.ssl = true;
+
+// Not really necessary
+config.minervaHost = host_config.publicHostname;
+
 
 // Use the name of the inferface you want to bind to for websockets
 // config.erizoController.networkInterface = 'eth1' // default value: undefined
@@ -87,7 +92,7 @@ config.erizoController.recording_path = undefined; // default value: undefined
 config.erizoAgent = {};
 
 // Max processes that ErizoAgent can run
-config.erizoAgent.maxProcesses 	  = 1; // default value: 1
+config.erizoAgent.maxProcesses    = 1; // default value: 1
 // Number of precesses that ErizoAgent runs when it starts. Always lower than or equals to maxProcesses.
 config.erizoAgent.prerunProcesses = 1; // default value: 1
 
@@ -102,8 +107,8 @@ config.erizo.stunserver = ''; // default value: ''
 config.erizo.stunport = 0; // default value: 0
 
 //note, this won't work with all versions of libnice. With 0 all the available ports are used
-config.erizo.minport = 63000;
-config.erizo.maxport = 63999;
+config.erizo.minport = host_config.minport;
+config.erizo.maxport = host_config.maxport;
 
 /***** END *****/
 // Following lines are always needed.
