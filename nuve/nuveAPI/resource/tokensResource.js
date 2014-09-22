@@ -6,6 +6,7 @@ var dataBase = require('./../mdb/dataBase');
 var crypto = require('crypto');
 var cloudHandler = require('../cloudHandler');
 var logger = require('./../logger').logger;
+var config = require('./../../../licode_config');
 
 // Logger
 var log = logger.getLogger("TokensResource");
@@ -47,7 +48,7 @@ var getTokenString = function (id, token) {
 };
 
 /*
- * Generates new token. 
+ * Generates new token.
  * The format of a token is:
  * {tokenId: id, host: erizoController host, signature: signature of the token};
  */
@@ -129,7 +130,11 @@ var generateToken = function (callback) {
             token.secure = ec.ssl;
             if (ec.hostname !== '') {
                 token.host = ec.hostname;
-            } else {
+            }
+            else if(config.erizoController.hostname) {
+                token.host = config.erizoController.hostname;
+            }
+            else {
                 token.host = ec.ip;
             }
 

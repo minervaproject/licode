@@ -49,13 +49,10 @@ config.erizoController.maxVideoBW = 300; //default value: 300
 //Use '' to automatically get IP from the interface
 config.erizoController.publicIP = host_config.publicIP;
 //Use '' to use the public IP address instead of a hostname
-config.erizoController.hostname = '';
+config.erizoController.hostname = host_config.publicHostname;
 config.erizoController.port = 443;
 //Use true if clients communicate with erizoController over SSL
 config.erizoController.ssl = true;
-
-// Not really necessary
-config.minervaHost = host_config.publicHostname;
 
 
 // Use the name of the inferface you want to bind to for websockets
