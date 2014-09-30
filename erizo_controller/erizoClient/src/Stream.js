@@ -75,42 +75,49 @@ Erizo.Stream = function (spec) {
     // Initializes the stream and tries to retrieve a stream from local video and audio
     // We need to call this method before we can publish it in the room.
     that.init = function () {
-        try {
-            if ((spec.audio || spec.video || spec.screen) && spec.url === undefined) {
-                L.Logger.debug("Requested access to local media");
-                var videoOpt = spec.video;
-                if (videoOpt == true && that.videoSize !== undefined) {
-                    videoOpt = {mandatory: {minWidth: that.videoSize[0], minHeight: that.videoSize[1], maxWidth: that.videoSize[2], maxHeight: that.videoSize[3], minFrameRate: 30, maxFrameRate: 30}};
-                }
-                var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake};
-                if (spec.screen) {
-                     opt = {video: {mandatory: {chromeMediaSource: 'screen', maxWidth: screen.availWidth, maxHeight: screen.availHeight, maxFrameRate: 30, minFrameRate: 30}}};
+      try {
+        if ((spec.audio || spec.video || spec.screen) && spec.url === undefined) {
+          L.Logger.debug("Requested access to local media");
+          var videoOpt = spec.video;
+          if (videoOpt === true && that.videoSize !== undefined) {
+            videoOpt = {mandatory: {minWidth: that.videoSize[0], minHeight: that.videoSize[1], maxWidth: that.videoSize[2], maxHeight: that.videoSize[3]}};
+          }
+          var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake};
+          if (spec.screen) {
+            opt.video.mandatory.maxWidth = screen.availWidth;
+            opt.video.mandatory.maxheight = screen.availHeight;
 
-                    if(spec.desktopStreamId) {
-                        opt.video.mandatory.chromeMediaSource = 'desktop';
-                        opt.video.mandatory.chromeMediaSourceId = spec.desktopStreamId;
-                    }
-                }
-                L.Logger.debug("Calling GetUserMedia with options", opt);
-                Erizo.GetUserMedia(opt, function (stream) {
-                //navigator.webkitGetUserMedia("audio, video", function (stream) {
-
-                    L.Logger.info("User has granted access to local media.");
-                    that.stream = stream;
-
-                    var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
-                    that.dispatchEvent(streamEvent);
-
-                }, function (error) {
-                    L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".");
-                    var streamEvent = Erizo.StreamEvent({type: "access-denied"});
-                    that.dispatchEvent(streamEvent);
-                });
-            } else {
-                var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
-                that.dispatchEvent(streamEvent);
+            // If desktopStreamId is passed in the spec, it means we used our our own Chrome extension
+            // to invoke the Media picker and get a desktopStreamId
+            if(spec.desktopStreamId) {
+                opt.video.mandatory.chromeMediaSource = 'desktop';
+                opt.video.mandatory.chromeMediaSourceId = spec.desktopStreamId;
             }
-        } catch (e) {
+            // Otherwise, Erizo.GetUserMedia will invoke the Chrome extension
+            else {
+                opt.screen = spec.screen;
+                opt.extensionId = that.extensionId;
+            }
+          }
+
+          L.Logger.debug("Calling GetUserMedia with options", opt);
+          Erizo.GetUserMedia(opt, function (stream) {
+            L.Logger.info("User has granted access to local media.");
+            that.stream = stream;
+
+            var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
+            that.dispatchEvent(streamEvent);
+
+          }, function (error) {
+            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".");
+            var streamEvent = Erizo.StreamEvent({type: "access-denied"});
+            that.dispatchEvent(streamEvent);
+          });
+          } else {
+            var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
+            that.dispatchEvent(streamEvent);
+          }
+          } catch (e) {
             L.Logger.error("Error accessing to local media", e);
           }
       };
