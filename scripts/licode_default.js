@@ -80,9 +80,9 @@ config.erizoController.recording_path = undefined; // default value: undefined
 config.erizoAgent = {};
 
 // Max processes that ErizoAgent can run
-config.erizoAgent.maxProcesses    = 1; // default value: 1
+config.erizoAgent.maxProcesses    = 6; // default value: 1
 // Number of precesses that ErizoAgent runs when it starts. Always lower than or equals to maxProcesses.
-config.erizoAgent.prerunProcesses = 1; // default value: 1
+config.erizoAgent.prerunProcesses = 2; // default value: 1
 
 /*********************************************************
  ERIZO JS CONFIGURATION
