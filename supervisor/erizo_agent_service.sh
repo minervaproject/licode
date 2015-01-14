@@ -12,17 +12,20 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/erizo/build/erizo:$ROOT/erizo:$ROO
 export ERIZO_HOME=$ROOT/erizo/
 
 # Make sure nuve service has started
-sleep 2
+sleep 5
 
 cd $ROOT/erizo_controller/erizoAgent
 
 ulimit -n 4096
 ulimit -c unlimited
 
-while node erizoAgent.js; do
-  echo "node erizoAgent.js exited unexpectedly.  Respawning." >&2
-  until node erizoAgent.js; do
-      echo "node erizoAgent.js crashed with exit code $?.  Respawning." >&2
-      sleep 1
-  done
-done
+# let supervisor manage process restarts
+# while node erizoAgent.js; do
+#   echo "node erizoAgent.js exited unexpectedly.  Respawning." >&2
+#   until node erizoAgent.js; do
+#       echo "node erizoAgent.js crashed with exit code $?.  Respawning." >&2
+#       sleep 1
+#   done
+# done
+
+node erizoAgent.js
