@@ -3,10 +3,9 @@
 # Script designed to run from a process control like supervisor or upstart
 # Does not put process in the background.
 
-SCRIPT=`pwd`/$0
-FILENAME=`basename $SCRIPT`
-ROOT=`dirname $SCRIPT`/..
-CURRENT_DIR=`pwd`
+pushd `dirname $0` > /dev/null
+ROOT=`pwd`/..
+popd > /dev/null
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/erizo/build/erizo:$ROOT/erizo:$ROOT/build/libdeps/build/lib
 export ERIZO_HOME=$ROOT/erizo/
