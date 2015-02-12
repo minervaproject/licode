@@ -16,3 +16,4 @@ extras/vagrant/licode/
 erizo_controller/erizoController/core
 erizo_controller/erizoAgent/out.log
 erizo_controller/erizoAgent/erizo-*.log
+build
