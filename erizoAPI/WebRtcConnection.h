@@ -18,8 +18,11 @@ class WebRtcConnection : public node::ObjectWrap, erizo::WebRtcConnectionEventLi
   static void Init(v8::Handle<v8::Object> target);
 
   erizo::WebRtcConnection *me;
-  int message;
+  int eventSt;
+  std::queue<int> eventSts;
+  std::queue<std::string> eventMsgs;
   std::string statsMsg;
+  boost::mutex mutex;
 
  private:
   WebRtcConnection();
@@ -52,6 +55,12 @@ class WebRtcConnection : public node::ObjectWrap, erizo::WebRtcConnectionEventLi
    * Returns true if the SDP was received correctly.
    */
   static v8::Handle<v8::Value> setRemoteSdp(const v8::Arguments& args);
+  /**
+     * Add new remote candidate (from remote peer).
+     * @param sdp The candidate in SDP format.
+     * @return true if the SDP was received correctly.
+     */
+  static v8::Handle<v8::Value>  addRemoteCandidate(const v8::Arguments& args);
   /*
    * Obtains the local SDP.
    * Returns the SDP as a string.
@@ -73,9 +82,11 @@ class WebRtcConnection : public node::ObjectWrap, erizo::WebRtcConnectionEventLi
    */
   static v8::Handle<v8::Value> getCurrentState(const v8::Arguments& args);
 
+  static v8::Handle<v8::Value> generatePLIPacket(const v8::Arguments& args);
 
-  static v8::Handle<v8::Value> getStats(const v8::Arguments& args);
-  
+
+  static v8::Handle<v8::Value> getStats(const v8::Arguments& args);  
+
   static void eventsCallback(uv_async_t *handle, int status);
   static void statsCallback(uv_async_t *handle, int status);
  

@@ -68,8 +68,12 @@ config.erizoController.roles =
     "viewer": {"subscribe": true},
     "viewerWithData": {"subscribe": true, "publish": {"audio": false, "video": false, "screen": false, "data": true}}}; // default value: {"presenter":{"publish": true, "subscribe":true, "record":true}, "viewer":{"subscribe":true}, "viewerWithData":{"subscribe":true, "publish":{"audio":false,"video":false,"screen":false,"data":true}}}
 
-// If true, erizoController sends stats to rabbitMQ queue "stats_handler"
-config.erizoController.sendStats = false; // default value: false
+// If true, erizoController sends report to rabbitMQ queue "report_handler"
+config.erizoController.report = {
+    session_events: false, 		// Session level events -- default value: false
+    connection_events: false, 	// Connection (ICE) level events -- default value: false
+    rtcp_stats: false				// RTCP stats -- default value: false
+};
 
 // If undefined, the path will be /tmp/
 config.erizoController.recording_path = undefined; // default value: undefined
@@ -83,6 +87,12 @@ config.erizoAgent = {};
 config.erizoAgent.maxProcesses    = 6; // default value: 1
 // Number of precesses that ErizoAgent runs when it starts. Always lower than or equals to maxProcesses.
 config.erizoAgent.prerunProcesses = 2; // default value: 1
+
+// Public erizoAgent IP for ICE candidates (useful when behind NATs)
+// Use '' to automatically get IP from the interface
+config.erizoAgent.publicIP = ''; //default value: ''
+// Use the name of the inferface you want to bind for ICE candidates
+// config.erizoAgent.networkInterface = 'eth1' // default value: undefined
 
 /*********************************************************
  ERIZO JS CONFIGURATION

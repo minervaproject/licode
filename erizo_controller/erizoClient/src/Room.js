@@ -77,7 +77,7 @@ Erizo.Room = function (spec) {
             stream.hide();
 
             // Close PC stream
-            stream.pc.close();
+            if (stream.pc) stream.pc.close();
             if (stream.local) {
                 stream.stream.stop();
             }
@@ -117,59 +117,73 @@ Erizo.Room = function (spec) {
             that.dispatchEvent(evt);
         });
 
+        that.socket.on('signaling_message_erizo', function (arg) {
+            var stream;
+            if (arg.peerId) {
+                stream = that.remoteStreams[arg.peerId];
+            } else {
+                stream = that.localStreams[arg.streamId];
+            }
 
-        that.socket.on('onSubscribeP2P', function (arg) {
+            if (stream) {
+                stream.pc.processSignalingMessage(arg.mess);
+            }
+        });
+
+        that.socket.on('signaling_message_peer', function (arg) {
+
+            var stream = that.localStreams[arg.streamId];
+
+            if (stream) {
+                stream.pc[arg.peerSocket].processSignalingMessage(arg.msg);
+            } else {
+                stream = that.remoteStreams[arg.streamId];
+
+                if (!stream.pc) {
+                    create_remote_pc(stream, arg.peerSocket);
+                }
+                stream.pc.processSignalingMessage(arg.msg);
+            }
+        });
+
+        that.socket.on('publish_me', function (arg) {
             var myStream = that.localStreams[arg.streamId];
 
             if (myStream.pc === undefined) {
                 myStream.pc = {};
             }
 
-            myStream.pc[arg.subsSocket] = Erizo.Connection({callback: function (offer) {
-                sendSDPSocket('publish', {state: 'p2pSignaling', streamId: arg.streamId, subsSocket: arg.subsSocket}, offer, function (answer, id) {
-                    if (answer === 'error') {
-                        if (callbackError) callbackError(answer);
-                    }
-                    myStream.pc[arg.subsSocket].onsignalingmessage = function (ok) {
-                        myStream.pc[arg.subsSocket].onsignalingmessage = function () {};
-                    };
-
-                    myStream.pc[arg.subsSocket].processSignalingMessage(answer);
-                });
+            myStream.pc[arg.peerSocket] = Erizo.Connection({callback: function (msg) {
+                sendSDPSocket('signaling_message', {streamId: arg.streamId, peerSocket: arg.peerSocket, msg: msg});
             }, audio: myStream.hasAudio(), video: myStream.hasVideo(), stunServerUrl: that.stunServerUrl, turnServer: that.turnServer});
 
-            myStream.pc[arg.subsSocket].addStream(myStream.stream);
 
-            myStream.pc[arg.subsSocket].oniceconnectionstatechange = function (state) {
+            myStream.pc[arg.peerSocket].oniceconnectionstatechange = function (state) {
                 if (state === 'disconnected') {
-                    myStream.pc[arg.subsSocket].close();
-                    delete myStream.pc[arg.subsSocket];
+                    myStream.pc[arg.peerSocket].close();
+                    delete myStream.pc[arg.peerSocket];
                 }
             };
 
+            myStream.pc[arg.peerSocket].addStream(myStream.stream);
+            myStream.pc[arg.peerSocket].createOffer();
         });
 
-        that.socket.on('onPublishP2P', function (arg, callback) {
-            var myStream = that.remoteStreams[arg.streamId];
+        var create_remote_pc = function (stream, peerSocket) {
 
-            myStream.pc = Erizo.Connection({callback: function (offer) {}, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW});
+            stream.pc = Erizo.Connection({callback: function (msg) {
+                sendSDPSocket('signaling_message', {streamId: stream.getID(), peerSocket: peerSocket, msg: msg});
+            }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW});
 
-            myStream.pc.onsignalingmessage = function (answer) {
-                myStream.pc.onsignalingmessage = function () {};
-                callback(answer);
-            };
-
-            myStream.pc.processSignalingMessage(arg.sdp);
-
-            myStream.pc.onaddstream = function (evt) {
+            stream.pc.onaddstream = function (evt) {
                 // Draw on html
                 L.Logger.info('Stream subscribed');
-                myStream.stream = evt.stream;
-                var evt2 = Erizo.StreamEvent({type: 'stream-subscribed', stream: myStream});
+                stream.stream = evt.stream;
+                var evt2 = Erizo.StreamEvent({type: 'stream-subscribed', stream: stream});
                 that.dispatchEvent(evt2);
             };
 
-        });
+        }
 
         // We receive an event of new data in one of the streams
         that.socket.on('onDataStream', function (arg) {
@@ -202,6 +216,14 @@ Erizo.Room = function (spec) {
             if (that.state !== DISCONNECTED) {
                 var disconnectEvt = Erizo.RoomEvent({type: "room-disconnected"});
                 that.dispatchEvent(disconnectEvt);
+            }
+        });
+
+        that.socket.on('connection_failed', function(arg){
+            L.Logger.info("ICE Connection Failed");
+            if (that.state !== DISCONNECTED) {
+                  var disconnectEvt = Erizo.RoomEvent({type: "stream-failed"});
+                  that.dispatchEvent(disconnectEvt);
             }
         });
 
@@ -248,7 +270,7 @@ Erizo.Room = function (spec) {
         that.state = CONNECTING;
         connectSocket(JSON.parse(token), function (response) {
             var index = 0, stream, streamList = [], streams, roomId, arg, connectEvt;
-            streams = response.streams;
+            streams = response.streams || [];
             that.p2p = response.p2p;
             roomId = response.id;
             that.stunServerUrl = response.stunServerUrl;
@@ -343,10 +365,10 @@ Erizo.Room = function (spec) {
                     // We save them now to be used when actually publishing in P2P mode.
                     spec.maxAudioBW = options.maxAudioBW;
                     spec.maxVideoBW = options.maxVideoBW;
-                    sendSDPSocket('publish', {state: 'p2p', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, undefined, function (answer, id) {
-                        if (answer === 'error') {
+                    sendSDPSocket('publish', {state: 'p2p', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, undefined, function (id) {
+                        if (id === 'error') {
                             if (callbackError)
-                                callbackError(answer);
+                                callbackError(id);
                         }
                         L.Logger.info('Stream published');
                         stream.getID = function () {
@@ -367,49 +389,39 @@ Erizo.Room = function (spec) {
 
                 } else {
 
-                    stream.pc = Erizo.Connection({callback: function (offer) {
-                        console.log("[room] Erizo connection callback, about to publish");
-                        sendSDPSocket('publish', {state: 'offer', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), attributes: stream.getAttributes()}, offer, function (answer, id) {
-                            if (answer === 'error') {
-                                if (callbackError)
-                                    callbackError(answer);
-                                return;
-                            }
-                            stream.pc.onsignalingmessage = function (ok) {
-                                stream.pc.onsignalingmessage = function () {};
-                                sendSDPSocket('publish', {state: 'ok', streamId: id, data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, ok);
-                                L.Logger.info('Stream published');
-                                stream.getID = function () {
-                                    return id;
-                                };
-                                if (stream.hasData()) {
-                                    stream.sendData = function (msg) {
-                                        sendDataSocket(stream, msg);
-                                    };
-                                }
-                                stream.setAttributes = function (attrs) {
-                                    updateAttributes(stream, attrs);
-                                };
-                                that.localStreams[id] = stream;
-                                stream.room = that;
-                                if (callback)
-                                    setTimeout(callback, 1);
-
+                    sendSDPSocket('publish', {state: 'erizo', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, undefined, function (answer, id) {
+                        if (answer === 'error') {
+                            if (callbackError)
+                                callbackError(answer);
+                            return;
+                        }
+                        stream.getID = function () {
+                            return id;
+                        };
+                        if (stream.hasData()) {
+                            stream.sendData = function (msg) {
+                                sendDataSocket(stream, msg);
                             };
-                            stream.pc.processSignalingMessage(answer);
-                        });
-                    }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer,
-                    maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW,
-                    audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate});
+                        }
+                        that.localStreams[id] = stream;
+                        stream.room = that;
 
-                    stream.pc.addStream(stream.stream);
+                        stream.pc = Erizo.Connection({callback: function (message) {
+                            console.log("Sending message", message);
+                            sendSDPSocket('signaling_message', {streamId: stream.getID(), msg: message}, undefined, function () {});
+                        }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, audio:stream.hasAudio(), video: stream.hasVideo(), audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate});
+
+                        stream.pc.addStream(stream.stream);
+                        stream.pc.createOffer();
+
+                    });
                 }
             } else if (stream.hasData()) {
                 // 3- Publish Data Stream
-                sendSDPSocket('publish', {state: 'data', data: stream.hasData(), audio: false, video: false, screen: false, attributes: stream.getAttributes()}, undefined, function (answer, id) {
-                    if (answer === 'error') {
+                sendSDPSocket('publish', {state: 'data', data: stream.hasData(), audio: false, video: false, screen: false, attributes: stream.getAttributes()}, undefined, function (id) {
+                    if (id === 'error') {
                         if (callbackError)
-                            callbackError(answer);
+                            callbackError(id);
                         return;
                     }
                     L.Logger.info('Stream published');
@@ -489,30 +501,31 @@ Erizo.Room = function (spec) {
                 if (that.p2p) {
                     sendSDPSocket('subscribe', {streamId: stream.getID()});
                 } else {
-                    stream.pc = Erizo.Connection({callback: function (offer) {
-                        sendSDPSocket('subscribe', {streamId: stream.getID(), audio: options.audio, video: options.video, data: options.data}, offer, function (answer) {
-                            if (answer === 'error') {
-                                if (callbackError)
-                                    callbackError(answer);
-                                return;
-                            }
-                            // For compatibility with only audio in Firefox
-                            if (answer.match(/a=ssrc:55543/)) {
-                                answer = answer.replace(/a=sendrecv\\r\\na=mid:video/, 'a=recvonly\\r\\na=mid:video');
-                                answer = answer.split('a=ssrc:55543')[0] + '"}';
-                            }
 
-                            stream.pc.processSignalingMessage(answer);
-                        });
-                    }, nop2p: true, audio: stream.hasAudio(), video: stream.hasVideo(), stunServerUrl: that.stunServerUrl, turnServer: that.turnServer});
+                    sendSDPSocket('subscribe', {streamId: stream.getID(), audio: options.audio, video: options.video, data: options.data, browser: Erizo.getBrowser()}, undefined, function (resp) {
+                        L.Logger.info('Subscriber added');
+                        if (resp === 'error') {
+                            if (callbackError)
+                                callbackError(resp);
+                            return;
+                        }
 
-                    stream.pc.onaddstream = function (evt) {
-                        // Draw on html
-                        L.Logger.info('Stream subscribed');
-                        stream.stream = evt.stream;
-                        var evt2 = Erizo.StreamEvent({type: 'stream-subscribed', stream: stream});
-                        that.dispatchEvent(evt2);
-                    };
+
+                        stream.pc = Erizo.Connection({callback: function (message) {
+                            L.Logger.info("Sending message", message);
+                            sendSDPSocket('signaling_message', {streamId: stream.getID(), msg: message, browser: stream.pc.browser}, undefined, function () {});
+                        }, nop2p: true, audio: stream.hasAudio(), video: stream.hasVideo(), stunServerUrl: that.stunServerUrl, turnServer: that.turnServer});
+
+                        stream.pc.onaddstream = function (evt) {
+                            // Draw on html
+                            L.Logger.info('Stream subscribed');
+                            stream.stream = evt.stream;
+                            var evt2 = Erizo.StreamEvent({type: 'stream-subscribed', stream: stream});
+                            that.dispatchEvent(evt2);
+                        };
+                        stream.pc.createOffer(true);
+                    });
+
                 }
             } else if (stream.hasData() && options.data !== false) {
                 sendSDPSocket('subscribe', {streamId: stream.getID(), data: options.data}, undefined, function (answer) {

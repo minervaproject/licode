@@ -16,12 +16,13 @@ namespace erizo {
   class DtlsTransport : dtls::DtlsReceiver, public Transport {
     DECLARE_LOGGER();
     public:
-    DtlsTransport(MediaType med, const std::string &transport_name, bool bundle, bool rtcp_mux, TransportListener *transportListener, const std::string &stunServer, int stunPort, int minPort, int maxPort);
+    DtlsTransport(MediaType med, const std::string &transport_name, bool bundle, bool rtcp_mux, TransportListener *transportListener, const std::string &stunServer, int stunPort, int minPort, int maxPort, std::string username, std::string password);
     virtual ~DtlsTransport();
     void connectionStateChanged(IceState newState);
     std::string getMyFingerprint();
     static bool isDtlsPacket(const char* buf, int len);
     void onNiceData(unsigned int component_id, char* data, int len, NiceConnection* nice);
+    void onCandidate(const CandidateInfo &candidate, NiceConnection *conn);
     void write(char* data, int len);
     void writeDtls(dtls::DtlsSocketContext *ctx, const unsigned char* data, unsigned int len);
     void onHandshakeCompleted(dtls::DtlsSocketContext *ctx, std::string clientKey, std::string serverKey, std::string srtp_profile);
@@ -35,7 +36,6 @@ namespace erizo {
     boost::mutex writeMutex_,sessionMutex_;
     boost::scoped_ptr<SrtpChannel> srtp_, srtcp_;
     bool readyRtp, readyRtcp;
-    bool bundle_;
     bool running_;
     boost::scoped_ptr<Resender> rtcpResender, rtpResender;
     boost::thread getNice_Thread_;
@@ -51,11 +51,12 @@ namespace erizo {
     void start();
     void run();
     void cancel();
-
+    int getStatus();
     void resend(const boost::system::error_code& ec);
   private:
     boost::shared_ptr<NiceConnection> nice_;
     unsigned int comp_;
+    int sent_;
     const unsigned char* data_;
     unsigned int len_;
     boost::asio::io_service service;

@@ -81,14 +81,20 @@ window.onload = function () {
           subscribeToStreams(streams);
         });
 
-        room.addEventListener("stream-removed", function (streamEvent) {
-          // Remove stream from DOM
-          var stream = streamEvent.stream;
-          if (stream.elementID !== undefined) {
-            var element = document.getElementById(stream.elementID);
-            document.body.removeChild(element);
-          }
-        });
+      room.addEventListener("stream-removed", function (streamEvent) {
+        // Remove stream from DOM
+        var stream = streamEvent.stream;
+        if (stream.elementID !== undefined) {
+          var element = document.getElementById(stream.elementID);
+          document.body.removeChild(element);
+        }
+      });
+
+      room.addEventListener("stream-failed", function (streamEvent){
+          console.log("STREAM FAILED, DISCONNECTION");
+          room.disconnect();
+
+      });
 
         room.connect();
 

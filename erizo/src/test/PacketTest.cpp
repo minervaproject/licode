@@ -1,5 +1,3 @@
-#define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE erizo
 #include <boost/test/unit_test.hpp>
 
 // Headers for RtpPacketQueue.h tests
@@ -7,6 +5,7 @@
 #include <rtp/RtpHeaders.h>
 #include <MediaDefinitions.h>
 
+BOOST_AUTO_TEST_SUITE( erizoPacket )
 /*---------- RtpPacketQueue TESTS ----------*/
 BOOST_AUTO_TEST_CASE(rtpPacketQueueDefaults)
 {
@@ -124,18 +123,27 @@ BOOST_AUTO_TEST_CASE(rtpPacketQueueDoesNotPushSampleLessThanWhatHasBeenPopped)
     queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
     BOOST_CHECK(queue.getSize() == 0);
     BOOST_CHECK(queue.hasData() == false);
+
+    // Then try to add a packet with the same sequence number.  This packet should not have
+    // been added to the queue.
+    header.setSeqNumber(12);
+    queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
+    BOOST_CHECK(queue.getSize() == 0);
+    BOOST_CHECK(queue.hasData() == false);
 }
 
 BOOST_AUTO_TEST_CASE(rtpPacketQueueMakesDataAvailableOnceEnoughSamplesPushed)
 {
     unsigned int max = 10, depth = 5;
-    erizo::RtpPacketQueue queue(max, depth);  // max and depth.
+    erizo::RtpPacketQueue queue(depth, max);  // max and depth.
+    queue.setTimebase(1);
 
     uint16_t x = 0;
 
     for(x = 0; x < (depth - 1); x++) {
         erizo::RtpHeader header;
         header.setSeqNumber(x);
+        queue.setTimebase(1);
         queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
     }
 
@@ -146,6 +154,7 @@ BOOST_AUTO_TEST_CASE(rtpPacketQueueMakesDataAvailableOnceEnoughSamplesPushed)
     // Add one more sample, verify that we have 5, and hasData now returns true.
     erizo::RtpHeader header;
     header.setSeqNumber(++x);
+    header.setTimestamp(++x);
     queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
 
     BOOST_CHECK(queue.getSize() == depth);
@@ -155,18 +164,19 @@ BOOST_AUTO_TEST_CASE(rtpPacketQueueMakesDataAvailableOnceEnoughSamplesPushed)
 BOOST_AUTO_TEST_CASE(rtpPacketQueueRespectsMax)
 {
     unsigned int max = 10, depth = 5;
-    erizo::RtpPacketQueue queue(max, depth);  // max and depth.
-
+    erizo::RtpPacketQueue queue(depth, max);  // max and depth.
+    queue.setTimebase(1);   // dummy timebase.
     uint16_t x = 0;
 
     // let's push ten times the max.
     for(uint16_t x = 0; x < (max * 10); x++) {
         erizo::RtpHeader header;
         header.setSeqNumber(x);
+        header.setTimestamp(x);
         queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
     }
 
-    BOOST_CHECK(queue.getSize() == max);
+    BOOST_CHECK(queue.getSize() == (max + 1));
     BOOST_CHECK(queue.hasData() == true);
 }
 
@@ -190,3 +200,48 @@ BOOST_AUTO_TEST_CASE(rtpPacketQueueRejectsDuplicatePackets)
     // We should only see ten packets, because those should all have been rejected.
     BOOST_CHECK(queue.getSize() == 10);
 }
+
+
+BOOST_AUTO_TEST_CASE(depthCalculationHandlesTimestampWrap)
+{
+    // In the RTP spec, timestamps for a packet are 32 bit unsigned, and can overflow (very possible given that the starting
+    // point is random.  Test that our depth works correctly
+    unsigned int max = 10, depth = 5;
+    erizo::RtpPacketQueue queue(depth, max);  // max and depth.
+    queue.setTimebase(1);   // dummy timebase.
+
+    uint32_t x = UINT_MAX - 4;
+    while( x != 1) {
+        erizo::RtpHeader header;
+        header.setSeqNumber(x);
+        header.setTimestamp(x);
+        queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
+        x++;    // overflow causes us to hit 1
+    }
+
+    // at this point, we should have data, but not enough to pass hasData()
+    BOOST_CHECK(queue.hasData() == false);
+
+    // Add one more packet, and we should have data
+    erizo::RtpHeader header;
+    header.setSeqNumber(x);
+    header.setTimestamp(x);
+    queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
+    BOOST_CHECK(queue.hasData() == true);
+
+    // Add a bunch more packets, and make sure the max is being enforced
+    while (x != 100) {
+    erizo::RtpHeader header;
+        header.setSeqNumber(x);
+        header.setTimestamp(x);
+        queue.pushPacket((const char *)&header, sizeof(erizo::RtpHeader));
+        x++;
+    }
+
+    // Max should be respected, we should have data
+    BOOST_CHECK(queue.getSize() == (max + 1));
+    BOOST_CHECK(queue.hasData() == true);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
