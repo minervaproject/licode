@@ -84,8 +84,11 @@ Erizo.Stream = function (spec) {
           }
           var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake};
           if (spec.screen) {
+            delete opt.audio;
+            delete opt.fake;
+            opt.video = {mandatory: {}};
             opt.video.mandatory.maxWidth = screen.availWidth;
-            opt.video.mandatory.maxheight = screen.availHeight;
+            opt.video.mandatory.maxHeight = screen.availHeight;
 
             // If desktopStreamId is passed in the spec, it means we used our our own Chrome extension
             // to invoke the Media picker and get a desktopStreamId
@@ -109,7 +112,7 @@ Erizo.Stream = function (spec) {
             that.dispatchEvent(streamEvent);
 
           }, function (error) {
-            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".");
+            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".", error);
             var streamEvent = Erizo.StreamEvent({type: "access-denied"});
             that.dispatchEvent(streamEvent);
           });
