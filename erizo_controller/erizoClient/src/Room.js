@@ -447,14 +447,15 @@ Erizo.Room = function (spec) {
         //     console.log("[renegotiate] aborted due to bad state");
         //     return;
         // }
-        stream.pc.onsignalingmessage = function(offer) {
-            stream.pc.onsignalingmessage = function() {};
-            sendSDPSocket('renegotiate', stream.getID(), offer, function(answer) {
-                console.log("[room] renegotiate, received answer");
-                stream.pc.processSignalingMessage(answer);
-            });
-        };
-        stream.pc.markActionNeeded();
+        stream.pc.createOffer();
+        // stream.pc.onsignalingmessage = function(offer) {
+        //     stream.pc.onsignalingmessage = function() {};
+        //     sendSDPSocket('renegotiate', stream.getID(), offer, function(answer) {
+        //         console.log("[room] renegotiate, received answer");
+        //         stream.pc.processSignalingMessage(answer);
+        //     });
+        // };
+        // stream.pc.markActionNeeded();
     };
 
 
