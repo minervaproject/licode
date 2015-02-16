@@ -17,6 +17,11 @@ namespace erizo{
 #define RTCP_RTP_Feedback_PT 205 // RTCP Transport Layer Feedback Packet
 #define RTCP_PS_Feedback_PT  206 // RTCP Payload Specific Feedback Packet
 
+#define RTCP_PLI_FMT           1
+#define RTCP_SLI_FMT           2
+#define RTCP_FIR_FMT           4
+#define RTCP_AFB              15
+
 #define VP8_90000_PT        100 // VP8 Video Codec
 #define RED_90000_PT        116 // REDundancy (RFC 2198)
 #define ULP_90000_PT        117 // ULP/FEC
@@ -195,7 +200,7 @@ namespace erizo{
   //
   //
   //
-  //0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   // |V=2|P| FMT=15  |   PT=206      |             length            |
   // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -238,47 +243,87 @@ namespace erizo{
           uint32_t octetssent;
           struct receiverReport_t rrlist[1];
         } senderReport;
+// Generic NACK RTCP_RTP_FB + (FMT 1)rfc4585
+//      0                   1                   2                   3
+//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |            PID                |             BLP               |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        struct genericNack_t{
+          uint32_t ssrcsource;
+          uint16_t pid;
+          uint16_t blp;
+        } nackPacket;
         
         struct remb_t{
           uint32_t ssrcsource;
           uint32_t uniqueid;
           uint32_t numssrc:8;
-          uint32_t brexp:6;
-          uint32_t brmantis:18; //0x3FFFF
+
+          uint32_t brLength :24;
+         
           uint32_t ssrcfeedb;
 
         } rembPacket;
+        
+        struct pli_t{
+          uint32_t ssrcsource;
+          uint32_t fci;
+        } pli;
 
       } report;
-
+      inline RtcpHeader(): blockcount(0), padding(0), version(2), packettype (0), length(0),
+     ssrc(0){
+      };
       inline bool isFeedback(void) {
         return (packettype==RTCP_Receiver_PT || 
             packettype==RTCP_PS_Feedback_PT ||
             packettype == RTCP_RTP_Feedback_PT);
       }
       inline bool isRtcp(void) {        
-        return (packettype == RTCP_Sender_PT || 
-            packettype == RTCP_Receiver_PT || 
-            packettype == RTCP_PS_Feedback_PT||
-            packettype == RTCP_RTP_Feedback_PT);
+        return (packettype == RTCP_Sender_PT ||
+            packettype == RTCP_APP ||
+            isFeedback()            
+            );
+      }
+      inline uint8_t getPacketType(){
+        return packettype;
+      }
+      inline void setPacketType(uint8_t pt){
+        packettype = pt;
       }
       inline uint8_t getBlockCount(){
         return (uint8_t)blockcount;
       }
+      inline void setBlockCount(uint8_t count){
+        blockcount = count;
+      }
       inline uint16_t getLength() {
         return ntohs(length);
+      }
+      inline void setLength(uint16_t theLength) {
+        length = htons(theLength);
       }
       inline uint32_t getSSRC(){
         return ntohl(ssrc);
       }
+      inline void setSSRC(uint32_t ssrc){
+        ssrc = htonl(ssrc);
+      }
       inline uint32_t getSourceSSRC(){
         return ntohl(report.receiverReport.ssrcsource);
       }
-      inline int getFractionLost() {
-        return ntohl(report.receiverReport.fractionlost);
+      inline void setSourceSSRC(uint32_t sourceSsrc){
+        report.receiverReport.ssrcsource = htonl(sourceSsrc);
       }
-      inline int getLostPackets() {
-        return ntohl(report.receiverReport.lost);
+      inline uint8_t getFractionLost() {
+        return (uint8_t)report.receiverReport.fractionlost;
+      }
+      inline void setFractionLost(uint8_t fractionLost){
+        report.receiverReport.fractionlost = fractionLost;
+      }
+      inline uint32_t getLostPackets() {
+        return ntohl(report.receiverReport.lost)>>8;
       }
       inline uint32_t getHighestSeqnum() {
         return ntohl(report.receiverReport.highestseqnum);
@@ -292,12 +337,29 @@ namespace erizo{
       inline uint32_t getOctetsSent(){
         return ntohl(report.senderReport.octetssent);
       }
-      inline uint32_t getBrMantis(){
-        return ntohl(report.rembPacket.brmantis);
+      uint16_t getNackPid(){
+        return ntohs(report.nackPacket.pid);
       }
-      inline uint32_t getBrExp(){
-        return report.rembPacket.brexp;
+      uint16_t getNackBlp(){
+        return ntohs(report.nackPacket.blp);
       }
+      inline uint32_t getBrExp(){ 
+        //remove the 0s added by nothl (8) + the 18 bits of Mantissa 
+        return (ntohl(report.rembPacket.brLength)>>26);
+      }
+      inline uint32_t getBrMantis(){        
+        return (ntohl(report.rembPacket.brLength)>>8 & 0x3ffff);
+      }
+      inline uint8_t getNumSSRC(){
+        return report.rembPacket.numssrc;
+      }
+      inline uint32_t getFCI(){
+        return ntohl(report.pli.fci);
+      }
+      inline void setFCI(uint32_t fci){
+        report.pli.fci = htonl(fci);
+      }
+
   };
 
 
@@ -373,10 +435,11 @@ namespace erizo{
       uint32_t follow :1;
       uint32_t tsLength :24;
       uint32_t getTS() {
-        return (ntohl(tsLength) & 0xfffc00) >> 10;
+        // remove the 8 bits added by nothl + the 10 from length 
+        return (ntohl(tsLength) & 0xfffc0000) >> 18;
       }
       uint32_t getLength() {
-        return (ntohl(tsLength) & 0x3ff);
+        return (ntohl(tsLength) & 0x3ff00);
       }
   };
 } /*namespace erizo*/

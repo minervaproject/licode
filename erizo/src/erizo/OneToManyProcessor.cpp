@@ -11,8 +11,6 @@ namespace erizo {
   OneToManyProcessor::OneToManyProcessor() {
     ELOG_DEBUG ("OneToManyProcessor constructor");
     feedbackSink_ = NULL;
-    sentPackets_ = 0;
-
   }
 
   OneToManyProcessor::~OneToManyProcessor() {
@@ -22,7 +20,11 @@ namespace erizo {
 
   int OneToManyProcessor::deliverAudioData_(char* buf, int len) {
  //   ELOG_DEBUG ("OneToManyProcessor deliverAudio");
-    if (subscribers.empty() || len <= 0)
+    if (len <= 0)
+      return 0;
+
+    boost::unique_lock<boost::mutex> lock(myMonitor_);
+    if(subscribers.empty())
       return 0;
 
     std::map<std::string, sink_ptr>::iterator it;
@@ -34,7 +36,7 @@ namespace erizo {
   }
 
   int OneToManyProcessor::deliverVideoData_(char* buf, int len) {
-    if (subscribers.empty() || len <= 0)
+    if (len <= 0)
       return 0;
     RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buf);
     if(head->isFeedback()){
@@ -45,13 +47,15 @@ namespace erizo {
       }
       return 0;
     }
+    boost::unique_lock<boost::mutex> lock(myMonitor_);
+    if (subscribers.empty())
+      return 0;
     std::map<std::string, sink_ptr>::iterator it;
     for (it = subscribers.begin(); it != subscribers.end(); ++it) {
       if((*it).second != NULL) {
         (*it).second->deliverVideoData(buf, len);
       }
     }
-    sentPackets_++;
     return 0;
   }
 
@@ -94,11 +98,11 @@ namespace erizo {
   }
 
   void OneToManyProcessor::closeAll() {
-    boost::unique_lock<boost::mutex> lock(myMonitor_);
+    ELOG_DEBUG ("OneToManyProcessor closeAll");
     feedbackSink_ = NULL;
     publisher.reset();
-    ELOG_DEBUG ("OneToManyProcessor closeAll");
-    std::map<std::string, boost::shared_ptr<MediaSink>>::iterator it = subscribers.begin();
+    boost::unique_lock<boost::mutex> lock(myMonitor_);
+    std::map<std::string, boost::shared_ptr<MediaSink> >::iterator it = subscribers.begin();
     while (it != subscribers.end()) {
       if ((*it).second != NULL) {
         FeedbackSource* fbsource = (*it).second->getFeedbackSource();
@@ -108,8 +112,6 @@ namespace erizo {
       }
       subscribers.erase(it++);
     }
-    lock.unlock();
-    lock.lock();
     subscribers.clear();
     ELOG_DEBUG ("ClosedAll media in this OneToMany");
   }

@@ -5,11 +5,15 @@ var spawn = require('child_process').spawn;
 
 var config = require('./../../licode_config');
 
+
 // Configuration default values
 GLOBAL.config = config || {};
 GLOBAL.config.erizoAgent = GLOBAL.config.erizoAgent || {};
 GLOBAL.config.erizoAgent.maxProcesses = GLOBAL.config.erizoAgent.maxProcesses || 1;
-GLOBAL.config.erizoAgent.prerunProcesses = GLOBAL.config.erizoAgent.prerunProcesses || 1;
+GLOBAL.config.erizoAgent.prerunProcesses = GLOBAL.config.erizoAgent.prerunProcesses === undefined ? 1 : GLOBAL.config.erizoAgent.prerunProcesses;
+GLOBAL.config.erizoAgent.publicIP = GLOBAL.config.erizoAgent.publicIP || '';
+
+var BINDED_INTERFACE_NAME = GLOBAL.config.erizoAgent.networkInterface;
 
 // Parse command line arguments
 var getopt = new Getopt([
@@ -52,7 +56,7 @@ for (var prop in opt.options) {
 
 // Load submodules with updated config
 var logger = require('./../common/logger').logger;
-var rpc = require('./../common/rpc');
+var amqper = require('./../common/amqper');
 
 // Logger
 var log = logger.getLogger("ErizoAgent");
@@ -93,20 +97,22 @@ var launchErizoJS = function() {
     var fs = require('fs');
     var out = fs.openSync('./erizo-' + id + '.log', 'a');
     var err = fs.openSync('./erizo-' + id + '.log', 'a');
-    var erizoProcess = spawn('node', ['./../erizoJS/erizoJS.js', id], { detached: true, stdio: [ 'ignore', out, err ] });
+    var erizoProcess = spawn('./launch.sh', ['./../erizoJS/erizoJS.js', id, privateIP, publicIP], { detached: true, stdio: [ 'ignore', out, err ] });
     erizoProcess.unref();
     erizoProcess.on('close', function (code) {
+
         var index = idle_erizos.indexOf(id);
         var index2 = erizos.indexOf(id);
         if (index > -1) {
             idle_erizos.splice(index, 1);
-            launchErizoJS();
         } else if (index2 > -1) {
             erizos.splice(index2, 1);
         }
         delete processes[id];
         fillErizos();
     });
+
+    log.info('Launched new ErizoJS ', id);
     processes[id] = erizoProcess;
     idle_erizos.push(id);
 };
@@ -120,28 +126,42 @@ var dropErizoJS = function(erizo_id, callback) {
    }
 };
 
-var fillErizos = function() {
-    for (var i = idle_erizos.length; i<GLOBAL.config.erizoAgent.prerunProcesses; i++) {
-        launchErizoJS();
+var fillErizos = function () {
+    if (erizos.length + idle_erizos.length < GLOBAL.config.erizoAgent.maxProcesses) {
+        if (idle_erizos.length < GLOBAL.config.erizoAgent.prerunProcesses) {
+            launchErizoJS();
+            fillErizos();
+        }
     }
 };
 
+var getErizo = function () {
+
+    var erizo_id = idle_erizos.shift();
+
+    if (!erizo_id) {
+        if (erizos.length < GLOBAL.config.erizoAgent.maxProcesses) {
+            launchErizoJS();
+            return getErizo();
+        } else {
+            erizo_id = erizos.shift();
+        }
+    }
+
+    return erizo_id;
+}
+
 var api = {
-    createErizoJS: function(id, callback) {
+    createErizoJS: function(callback) {
         try {
-            var erizo_id = idle_erizos.pop();
+
+            var erizo_id = getErizo(); 
+            
             callback("callback", erizo_id);
 
-            // We re-use Erizos
-            if ((erizos.length + idle_erizos.length + 1) >= GLOBAL.config.erizoAgent.maxProcesses) {
-                idle_erizos.push(erizo_id);
-            } else {
-                erizos.push(erizo_id);
-            }
-
-            // We launch more processes
+            erizos.push(erizo_id);
             fillErizos();
-            
+
         } catch (error) {
             console.log("Error in ErizoAgent:", error);
         }
@@ -155,16 +175,48 @@ var api = {
     }
 };
 
+var interfaces = require('os').networkInterfaces(),
+    addresses = [],
+    k,
+    k2,
+    address, 
+    privateIP, 
+    publicIP;
+
+
+for (k in interfaces) {
+    if (interfaces.hasOwnProperty(k)) {
+        for (k2 in interfaces[k]) {
+            if (interfaces[k].hasOwnProperty(k2)) {
+                address = interfaces[k][k2];
+                if (address.family === 'IPv4' && !address.internal) {
+                    if (k === BINDED_INTERFACE_NAME || !BINDED_INTERFACE_NAME) {
+                        addresses.push(address.address);
+                    }
+                }
+            }
+        }
+    }
+}
+
+privateIP = addresses[0];
+
+if (GLOBAL.config.erizoAgent.publicIP === '' || GLOBAL.config.erizoAgent.publicIP === undefined){
+    publicIP = addresses[0];
+} else {
+    publicIP = GLOBAL.config.erizoAgent.publicIP;
+}
+
 fillErizos();
 
-rpc.connect(function () {
+amqper.connect(function () {
     "use strict";
-    rpc.setPublicRPC(api);
+    amqper.setPublicRPC(api);
 
     var rpcID = "ErizoAgent";
     
 
-    rpc.bind(rpcID);
+    amqper.bind(rpcID);
 
 });
 

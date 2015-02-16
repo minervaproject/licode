@@ -146,9 +146,6 @@ namespace erizo {
 
     av_init_packet(&avpacket_);
 
-//    AVStream* stream=NULL;
-
-    ELOG_DEBUG("Initializing external input for codec %s", st->codec->codec_name);
     thread_ = boost::thread(&ExternalInput::receiveLoop, this);
     running_ = true;
     if (needTranscoding_)
@@ -157,7 +154,7 @@ namespace erizo {
     return true;
   }
 
-  int ExternalInput::sendFirPacket() {
+  int ExternalInput::sendPLI() {
     return 0;
   }
 

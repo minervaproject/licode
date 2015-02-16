@@ -15,6 +15,8 @@ using std::endl;
 namespace erizo {
   DEFINE_LOGGER(SdpInfo, "SdpInfo");
 
+
+  static const char *SDP_IDENTIFIER = "LicodeMCU";
   static const char *cand = "a=candidate:";
   static const char *crypto = "a=crypto:";
   static const char *group = "a=group:";
@@ -27,6 +29,7 @@ namespace erizo {
   static const char *rtpmap = "a=rtpmap:";
   static const char *rtcpmux = "a=rtcp-mux";
   static const char *fp = "a=fingerprint";
+  static const char *rtcpfb = "a=rtcp-fb:";
 
   SdpInfo::SdpInfo() {
     isBundle = false;
@@ -37,8 +40,10 @@ namespace erizo {
     profile = AVPF;
     audioSsrc = 0;
     videoSsrc = 0;
-
-    ELOG_DEBUG("Generating internal RtpMap");
+    videoCodecs = 0;
+    audioCodecs = 0;
+    videoSdpMLine = -1;
+    audioSdpMLine = -1;
 
     RtpMap vp8;
     vp8.payloadType = VP8_90000_PT;
@@ -151,9 +156,8 @@ namespace erizo {
   SdpInfo::~SdpInfo() {
   }
 
-  bool SdpInfo::initWithSdp(const std::string& sdp) {
-    processSdp(sdp);
-    return true;
+  bool SdpInfo::initWithSdp(const std::string& sdp, const std::string& media) {
+    return processSdp(sdp, media);
   }
   void SdpInfo::addCandidate(const CandidateInfo& info) {
     candidateVector_.push_back(info);
@@ -164,6 +168,42 @@ namespace erizo {
     cryptoVector_.push_back(info);
   }
 
+  void SdpInfo::setCredentials(const std::string& username, const std::string& password, MediaType media) {
+    switch(media){
+      case(VIDEO_TYPE):
+        iceVideoUsername_ = std::string(username);
+        iceVideoPassword_ = std::string(password);
+        break;
+      case(AUDIO_TYPE):
+        iceAudioUsername_ = std::string(username);
+        iceAudioPassword_ = std::string(password);
+        break;
+      default:
+        iceVideoUsername_ = std::string(username);
+        iceVideoPassword_ = std::string(password);
+        iceAudioUsername_ = std::string(username);
+        iceAudioPassword_ = std::string(password);
+        break;
+    }
+  }
+
+  void SdpInfo::getCredentials(std::string& username, std::string& password, MediaType media) {
+    switch(media){
+      case(VIDEO_TYPE):
+        username.replace(0, username.length(),iceVideoUsername_);
+        password.replace(0, username.length(),iceVideoPassword_);
+        break;
+      case(AUDIO_TYPE):
+        username.replace(0, username.length(),iceAudioUsername_);
+        password.replace(0, username.length(),iceAudioPassword_);
+        break;
+      default:
+        username.replace(0, username.length(),iceVideoUsername_);
+        password.replace(0, username.length(),iceVideoPassword_);
+        break;
+    }
+  }
+
   std::string SdpInfo::getSdp() {
     char msidtemp [10];
     gen_random(msidtemp,10);
@@ -171,88 +211,53 @@ namespace erizo {
     ELOG_DEBUG("Getting SDP");
 
     std::ostringstream sdp;
-    sdp << "v=0\n" << "o=- 0 0 IN IP4 127.0.0.1\n" << "s=\n" << "t=0 0\n";
+    sdp << "v=0\n" << "o=- 0 0 IN IP4 127.0.0.1\n";
+    sdp << "s=" << SDP_IDENTIFIER << "\n";
+    sdp << "t=0 0\n";
 
     if (isBundle) {
-      sdp << "a=group:BUNDLE audio video\n";
+      sdp << "a=group:BUNDLE";
+      if (this->hasAudio)
+        sdp << " audio";
+      if (this->hasVideo)
+        sdp << " video";
+      sdp << "\n";
       sdp << "a=msid-semantic: WMS "<< msidtemp << endl;
      }
     //candidates audio
-    bool printedAudio = false, printedVideo = false;
+    bool printedAudio = true, printedVideo = true;
 
-    for (unsigned int it = 0; it < candidateVector_.size(); it++) {
-      const CandidateInfo& cand = candidateVector_[it];
-      std::string hostType_str;
-      switch (cand.hostType) {
-        case HOST:
-          hostType_str = "host";
-          break;
-        case SRFLX:
-          hostType_str = "srflx";
-          break;
-        case PRFLX:
-          hostType_str = "prflx";
-          break;
-        case RELAY:
-          hostType_str = "relay";
-          break;
-        default:
-          hostType_str = "host";
-          break;
+    if (printedAudio && this->hasAudio) {
+      sdp << "m=audio 1 RTP/" << (profile==SAVPF?"SAVPF ":"AVPF ");// << "103 104 0 8 106 105 13 126\n"
+
+      int codecCounter=0;
+      for (unsigned int it =0; it<payloadVector.size(); it++){
+        const RtpMap& payload_info = payloadVector[it];
+        if (payload_info.mediaType == AUDIO_TYPE){
+          codecCounter++;
+          sdp << payload_info.payloadType <<((codecCounter<audioCodecs)?" ":"");
+        }
       }
 
-      if (cand.mediaType == AUDIO_TYPE) {
-        if (!printedAudio) {
-          sdp << "m=audio " << cand.hostPort
-            << " RTP/" << (profile==SAVPF?"SAVPF ":"AVPF ");// << "103 104 0 8 106 105 13 126\n"
-          for (unsigned int it =0; it<internalPayloadVector_.size(); it++){
-            const RtpMap& payload_info = internalPayloadVector_[it];
-            if (payload_info.mediaType == AUDIO_TYPE)
-              sdp << payload_info.payloadType <<" ";
-
-          }
-          sdp << "\n"
-            << "c=IN IP4 " << cand.hostAddress
-            << endl;
-          if (isRtcpMux) {
-            sdp << "a=rtcp:" << candidateVector_[0].hostPort << " IN IP4 " << cand.hostAddress
-                << endl;
-          }
-          printedAudio = true;
-        }
-
-        std::string generation = " generation 0";
-
-        int comps = cand.componentId;
-        if (isRtcpMux) {
-          comps++;
-        }
-        for (int idx = cand.componentId; idx <= comps; idx++) {
-          sdp << "a=candidate:" << cand.foundation << " " << idx
-              << " " << cand.netProtocol << " " << cand.priority << " "
-              << cand.hostAddress << " " << cand.hostPort << " typ "
-              << hostType_str;
-          if (cand.hostType == SRFLX || cand.hostType == RELAY) {
-            //raddr 192.168.0.12 rport 50483
-            sdp << " raddr " << cand.rAddress << " rport " << cand.rPort;
-          }
-          sdp << generation  << endl;
-        }
-
-        iceUsername_ = cand.username;
-        icePassword_ = cand.password;
+      sdp << "\n"
+          << "c=IN IP4 0.0.0.0" << endl;
+      if (isRtcpMux) {
+        sdp << "a=rtcp:1 IN IP4 0.0.0.0" << endl;
       }
-    }
-    //crypto audio
-    if (printedAudio) {
-      sdp << "a=ice-ufrag:" << iceUsername_ << endl;
-      sdp << "a=ice-pwd:" << icePassword_ << endl;
+      if(iceAudioUsername_.size()>0){
+        sdp << "a=ice-ufrag:" << iceAudioUsername_ << endl;
+        sdp << "a=ice-pwd:" << iceAudioPassword_ << endl;
+      }else{
+        sdp << "a=ice-ufrag:" << iceVideoUsername_ << endl;
+        sdp << "a=ice-pwd:" << iceVideoPassword_ << endl;
+      }
       //sdp << "a=ice-options:google-ice" << endl;
       if (isFingerprint) {
         sdp << "a=fingerprint:sha-256 "<< fingerprint << endl;
       }
       sdp << "a=sendrecv" << endl;
       sdp << "a=mid:audio\n";
+      sdp << "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level" << endl;
       if (isRtcpMux)
         sdp << "a=rtcp-mux\n";
       for (unsigned int it = 0; it < cryptoVector_.size(); it++) {
@@ -264,24 +269,27 @@ namespace erizo {
         }
       }
 
-      for (unsigned int it = 0; it < internalPayloadVector_.size(); it++) {
-        const RtpMap& rtp = internalPayloadVector_[it];
+      for (unsigned int it = 0; it < payloadVector.size(); it++) {
+        const RtpMap& rtp = payloadVector[it];
         if (rtp.mediaType==AUDIO_TYPE) {
+          int payloadType = rtp.payloadType;
           if (rtp.channels>1) {
-            sdp << "a=rtpmap:"<<rtp.payloadType << " " << rtp.encodingName << "/"
+            sdp << "a=rtpmap:"<< payloadType << " " << rtp.encodingName << "/"
               << rtp.clockRate << "/" << rtp.channels << endl;
           } else {
-            sdp << "a=rtpmap:"<<rtp.payloadType << " " << rtp.encodingName << "/"
+            sdp << "a=rtpmap:"<< payloadType << " " << rtp.encodingName << "/"
               << rtp.clockRate << endl;
           }
           if(rtp.encodingName == "opus"){
-            sdp << "a=fmtp:"<< rtp.payloadType<<" minptime=10\n";
+            sdp << "a=fmtp:"<< payloadType<<" minptime=10\n";
           }
         }
       }
+
       if (audioSsrc == 0) {
         audioSsrc = 44444;
       }
+
       sdp << "a=maxptime:60" << endl;
       sdp << "a=ssrc:" << audioSsrc << " cname:o/i14u9pJrxRKAsu" << endl<<
         "a=ssrc:"<< audioSsrc << " msid:"<< msidtemp << " a0"<< endl<<
@@ -290,69 +298,25 @@ namespace erizo {
 
     }
 
-    for (unsigned int it = 0; it < candidateVector_.size(); it++) {
-      const CandidateInfo& cand = candidateVector_[it];
-      std::string hostType_str;
-      switch (cand.hostType) {
-        case HOST:
-          hostType_str = "host";
-          break;
-        case SRFLX:
-          hostType_str = "srflx";
-          break;
-        case PRFLX:
-          hostType_str = "prflx";
-          break;
-        case RELAY:
-          hostType_str = "relay";
-          break;
-        default:
-          hostType_str = "host";
-          break;
+    if (printedVideo && this->hasVideo) {
+      sdp << "m=video 1 RTP/" << (profile==SAVPF?"SAVPF ":"AVPF "); //<<  "100 101 102 103\n"
+
+      int codecCounter = 0;
+      for (unsigned int it =0; it<payloadVector.size(); it++){
+        const RtpMap& payload_info = payloadVector[it];
+        if (payload_info.mediaType == VIDEO_TYPE){
+          codecCounter++;
+          sdp << payload_info.payloadType <<((codecCounter<videoCodecs)?" ":"");
+        }
       }
-      if (cand.mediaType == VIDEO_TYPE) {
-        if (!printedVideo) {
-          sdp << "m=video " << cand.hostPort << " RTP/" << (profile==SAVPF?"SAVPF ":"AVPF "); //<<  "100 101 102 103\n"
 
-          for (unsigned int it =0; it<internalPayloadVector_.size(); it++){
-            const RtpMap& payload_info = internalPayloadVector_[it];
-            if (payload_info.mediaType == VIDEO_TYPE)
-              sdp << payload_info.payloadType <<" ";
-          }
-
-          sdp << "\n" << "c=IN IP4 " << cand.hostAddress << endl;
-          if (isRtcpMux) {
-            sdp << "a=rtcp:" << candidateVector_[0].hostPort << " IN IP4 " << cand.hostAddress
-                << endl;
-          }
-          printedVideo = true;
-        }
-
-        std::string generation = " generation 0";
-        int comps = cand.componentId;
-        if (isRtcpMux) {
-          comps++;
-        }
-        for (int idx = cand.componentId; idx <= comps; idx++) {
-          sdp << "a=candidate:" << cand.foundation << " " << idx
-              << " " << cand.netProtocol << " " << cand.priority << " "
-              << cand.hostAddress << " " << cand.hostPort << " typ "
-              << hostType_str;
-          if (cand.hostType == SRFLX||cand.hostType == RELAY) {
-            //raddr 192.168.0.12 rport 50483
-            sdp << " raddr " << cand.rAddress << " rport " << cand.rPort;
-          }
-          sdp << generation  << endl;
-        }
-
-        iceUsername_ = cand.username;
-        icePassword_ = cand.password;
+      sdp << "\n" << "c=IN IP4 0.0.0.0" << endl;
+      if (isRtcpMux) {
+        sdp << "a=rtcp:1 IN IP4 0.0.0.0" << endl;
       }
-    }
-    //crypto video
-    if (printedVideo) {
-      sdp << "a=ice-ufrag:" << iceUsername_ << endl;
-      sdp << "a=ice-pwd:" << icePassword_ << endl;
+
+      sdp << "a=ice-ufrag:" << iceVideoUsername_ << endl;
+      sdp << "a=ice-pwd:" << iceVideoPassword_ << endl;
       //sdp << "a=ice-options:google-ice" << endl;
 
       sdp << "a=extmap:2 urn:ietf:params:rtp-hdrext:toffset" << endl;
@@ -374,15 +338,17 @@ namespace erizo {
         }
       }
 
-      for (unsigned int it = 0; it < internalPayloadVector_.size(); it++) {
-        const RtpMap& rtp = internalPayloadVector_[it];
-          if (rtp.mediaType==VIDEO_TYPE)
-          {
-          sdp << "a=rtpmap:"<<rtp.payloadType << " " << rtp.encodingName << "/"
+      for (unsigned int it = 0; it < payloadVector.size(); it++) {
+        const RtpMap& rtp = payloadVector[it];
+          if (rtp.mediaType==VIDEO_TYPE) {
+            int payloadType = rtp.payloadType;
+            sdp << "a=rtpmap:"<<payloadType << " " << rtp.encodingName << "/"
               << rtp.clockRate <<"\n";
-          if(rtp.encodingName == "VP8"){
-            sdp << "a=rtcp-fb:"<< rtp.payloadType<<" ccm fir\n" ;
-          }
+            if(!rtp.feedbackTypes.empty()){
+              for (unsigned int itFb = 0; itFb < rtp.feedbackTypes.size(); itFb++){
+                sdp << "a=rtcp-fb:" << payloadType << " " << rtp.feedbackTypes[itFb] << "\n";
+              }
+            }
         }
       }
       if (videoSsrc == 0) {
@@ -418,8 +384,8 @@ namespace erizo {
   bool SdpInfo::supportPayloadType(const int payloadType) {
     if (inOutPTMap.count(payloadType) > 0) {
 
-      for (unsigned int it = 0; it < payloadVector_.size(); it++) {
-        const RtpMap& rtp = payloadVector_[it];
+      for (unsigned int it = 0; it < payloadVector.size(); it++) {
+        const RtpMap& rtp = payloadVector[it];
         if (inOutPTMap[rtp.payloadType] == payloadType) {
           return true;
         }
@@ -429,12 +395,35 @@ namespace erizo {
     return false;
   }
 
-  bool SdpInfo::processSdp(const std::string& sdp) {
+  void SdpInfo::setOfferSdp(const SdpInfo& offerSdp) {
+    this->videoCodecs = offerSdp.videoCodecs;
+    this->audioCodecs = offerSdp.audioCodecs;
+    this->payloadVector = offerSdp.payloadVector;
+    this->isBundle = offerSdp.isBundle;
+    this->profile = offerSdp.profile;
+    this->isRtcpMux = offerSdp.isRtcpMux;
+    this->videoSdpMLine = offerSdp.videoSdpMLine;
+    this->audioSdpMLine = offerSdp.audioSdpMLine;
+    this->inOutPTMap = offerSdp.inOutPTMap;
+    this->outInPTMap = offerSdp.outInPTMap;
+    this->hasVideo = offerSdp.hasVideo;
+    this->hasAudio = offerSdp.hasAudio;
+    ELOG_DEBUG("Setting SourceSDP");
+
+  }
+
+  bool SdpInfo::processSdp(const std::string& sdp, const std::string& media) {
 
     std::string line;
     std::istringstream iss(sdp);
+    int mlineNum = -1;
 
     MediaType mtype = OTHER;
+    if (media == "audio") {
+      mtype = AUDIO_TYPE;
+    } else if (media == "video") {
+      mtype = VIDEO_TYPE;
+    }
 
     while (std::getline(iss, line)) {
       size_t isVideo = line.find(video);
@@ -449,6 +438,7 @@ namespace erizo {
       size_t isRtpmap = line.find(rtpmap);
       size_t isRtcpMuxchar = line.find(rtcpmux);
       size_t isFP = line.find(fp);
+      size_t isFeedback = line.find(rtcpfb);
 
       ELOG_DEBUG("current line -> %s", line.c_str());
 
@@ -474,10 +464,14 @@ namespace erizo {
         isBundle = true;
       }
       if (isVideo != std::string::npos) {
+        videoSdpMLine = ++mlineNum;
+        ELOG_DEBUG("sdp has video, mline = %d",videoSdpMLine);
         mtype = VIDEO_TYPE;
         hasVideo = true;
       }
       if (isAudio != std::string::npos) {
+        audioSdpMLine = ++mlineNum;
+        ELOG_DEBUG("sdp has audio, mline = %d",audioSdpMLine);
         mtype = AUDIO_TYPE;
         hasAudio = true;
       }
@@ -499,19 +493,35 @@ namespace erizo {
                    crypinfo.mediaType);
       }
       if (isUser != std::string::npos) {
-        std::vector<std::string> parts = stringutil::splitOneOf(line, ":", 1);
+        std::vector<std::string> parts = stringutil::splitOneOf(stringutil::splitOneOf(line, ":", 1)[1], "\r", 1);
         // FIXME add error checking
-        iceUsername_ = parts[1];
-        ELOG_DEBUG("ICE username: %s", iceUsername_.c_str());
+        if (mtype == VIDEO_TYPE){
+          iceVideoUsername_ = parts[0];
+          ELOG_DEBUG("ICE Video username: %s", iceVideoUsername_.c_str());
+        }else if (mtype == AUDIO_TYPE){
+          iceAudioUsername_ = parts[0];
+          ELOG_DEBUG("ICE Audio username: %s", iceAudioUsername_.c_str());
+        }else{
+          ELOG_DEBUG("Unknown media type for ICE credentials, looks like Firefox");
+          iceVideoUsername_ = parts[0];
+        }
       }
       if (isPass != std::string::npos) {
-        std::vector<std::string> parts = stringutil::splitOneOf(line, ":", 1);
+        std::vector<std::string> parts = stringutil::splitOneOf(stringutil::splitOneOf(line, ":", 1)[1], "\r", 1);
         // FIXME add error checking
-        icePassword_ = parts[1];
-        ELOG_DEBUG("ICE password: %s", icePassword_.c_str());
+        if (mtype == VIDEO_TYPE){
+          iceVideoPassword_ = parts[0];
+          ELOG_DEBUG("ICE Video password: %s", iceVideoPassword_.c_str());
+        }else if (mtype == AUDIO_TYPE){
+          iceAudioPassword_ = parts[0];
+          ELOG_DEBUG("ICE Audio password: %s", iceAudioPassword_.c_str());
+        }else{
+          ELOG_DEBUG("Unknown media type for ICE credentials, looks like Firefox");
+          iceVideoPassword_ = parts[0];
+        }
       }
       if (isSsrc != std::string::npos) {
-        std::vector<std::string> parts = stringutil::splitOneOf(line, " :\n", 2);
+        std::vector<std::string> parts = stringutil::splitOneOf(line, " :", 2);
         // FIXME add error checking
         if ((mtype == VIDEO_TYPE) && (videoSsrc == 0)) {
           videoSsrc = strtoul(parts[1].c_str(), NULL, 10);
@@ -539,22 +549,59 @@ namespace erizo {
           if (rtp.encodingName == codecname && rtp.clockRate == clock) {
             outInPTMap[PT] = rtp.payloadType;
             inOutPTMap[rtp.payloadType] = PT;
+            theMap.channels = rtp.channels;
             found = true;
             ELOG_DEBUG("Mapping %s/%d:%d to %s/%d:%d", codecname.c_str(), clock, PT, rtp.encodingName.c_str(), rtp.clockRate, rtp.payloadType);
           }
         }
         if (found) {
-          payloadVector_.push_back(theMap);
+          if(theMap.mediaType == VIDEO_TYPE)
+            videoCodecs++;
+          else
+            audioCodecs++;
+
+          payloadVector.push_back(theMap);
+        }
+      }
+
+      if(isFeedback != std::string::npos){
+        std::vector<std::string> parts = stringutil::splitOneOf(line, " :", 2);
+        unsigned int PT = strtoul(parts[1].c_str(), NULL, 10);
+        std::string feedback = parts[2];
+        for (unsigned int it = 0; it < payloadVector.size(); it++){
+          RtpMap& rtp = payloadVector[it];
+          if (rtp.payloadType == PT){
+            ELOG_DEBUG("Adding %s feedback to pt %u", feedback.c_str(), PT);
+            rtp.feedbackTypes.push_back(feedback);
+          }
         }
       }
 
     }
+    // If there is no video or audio credentials we use the ones we have
+    if (iceVideoUsername_.empty() && iceAudioUsername_.empty()){
+      ELOG_ERROR("No valid credentials for ICE")
+      return false;
+    }else if (iceVideoUsername_.empty()){
+      ELOG_DEBUG("Video credentials empty, setting the audio ones");
+      iceVideoUsername_ = iceAudioUsername_;
+      iceVideoPassword_ = iceAudioPassword_;
+    }else if (iceAudioUsername_.empty()){
+      ELOG_DEBUG("Audio credentials empty, setting the video ones");
+      iceAudioUsername_ = iceVideoUsername_;
+      iceAudioPassword_ = iceVideoPassword_;
+    }
 
     for (unsigned int i = 0; i < candidateVector_.size(); i++) {
-      CandidateInfo& c = candidateVector_[i];
-      c.username = iceUsername_;
-      c.password = icePassword_;
-      c.isBundle = isBundle;
+        CandidateInfo& c = candidateVector_[i];
+        c.isBundle = isBundle;
+        if (c.mediaType == VIDEO_TYPE){
+          c.username = iceVideoUsername_;
+          c.password = iceVideoPassword_;
+        }else{
+          c.username = iceAudioUsername_;
+          c.password = iceAudioPassword_;
+        }
     }
 
     return true;
@@ -568,8 +615,42 @@ namespace erizo {
     return cryptoVector_;
   }
 
-  std::vector<RtpMap>& SdpInfo::getPayloadInfos(){
-    return payloadVector_;
+  const std::vector<RtpMap>& SdpInfo::getPayloadInfos(){
+    return payloadVector;
+  }
+
+  int SdpInfo::getAudioInternalPT(int externalPT) {
+      // should use separate mapping for video and audio at the very least
+      // standard requires separate mappings for each media, even!
+      std::map<const int, int>::iterator found = outInPTMap.find(externalPT);
+      if (found != outInPTMap.end()) {
+          return found->second;
+      }
+      return externalPT;
+  }
+
+  int SdpInfo::getVideoInternalPT(int externalPT) {
+    // WARNING
+    // should use separate mapping for video and audio at the very least
+    // standard requires separate mappings for each media, even!
+    return getAudioInternalPT(externalPT);
+  }
+
+  int SdpInfo::getAudioExternalPT(int internalPT) {
+    // should use separate mapping for video and audio at the very least
+    // standard requires separate mappings for each media, even!
+    std::map<const int, int>::iterator found = inOutPTMap.find(internalPT);
+    if (found != inOutPTMap.end()) {
+        return found->second;
+    }
+    return internalPT;
+  }
+
+  int SdpInfo::getVideoExternalPT(int internalPT) {
+      // WARNING
+      // should use separate mapping for video and audio at the very least
+      // standard requires separate mappings for each media, even!
+      return getAudioExternalPT(internalPT);
   }
 
   bool SdpInfo::processCandidate(std::vector<std::string>& pieces, MediaType mediaType) {

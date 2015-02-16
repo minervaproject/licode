@@ -11,7 +11,8 @@
   ],
   "levels": {
   	"ErizoController": "DEBUG",
-  	"RPC": "INFO",
-        "ErizoJS": "INFO"
+  	"AMQPER": "INFO",
+    "ErizoJS": "DEBUG", 
+    "ErizoJSController": "DEBUG"
   }
 }

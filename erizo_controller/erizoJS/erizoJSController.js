@@ -2,7 +2,7 @@
 
 var addon = require('./../../erizoAPI/build/Release/addon');
 var logger = require('./../common/logger').logger;
-var rpc = require('./../common/rpc');
+var amqper = require('./../common/amqper');
 
 // Logger
 var log = logger.getLogger("ErizoJSController");
@@ -11,72 +11,90 @@ exports.ErizoJSController = function (spec) {
     "use strict";
 
     var that = {},
-        // {id: array of subscribers}
+        // {id: {subsId1: wrtc1, subsId2: wrtc2}}
         subscribers = {},
-        // {id: OneToManyProcessor}
+        // {id: {muxer: OneToManyProcessor, wrtc: WebRtcConnection}
         publishers = {},
 
         // {id: ExternalOutput}
         externalOutputs = {},
 
         INTERVAL_TIME_SDP = 100,
-        INTERVAL_TIME_FIR = 100,
         INTERVAL_TIME_KILL = 30*60*1000, // Timeout to kill itself after a timeout since the publisher leaves room.
-        waitForFIR,
+        INTERVAL_STATS = 3000,
         initWebRtcConnection,
         getSdp,
         getRoap;
 
 
-    /*
-     * Given a WebRtcConnection waits for the state READY for ask it to send a FIR packet to its publisher.
-     */
-    waitForFIR = function (wrtc, to) {
+    var CONN_INITIAL = 101, CONN_STARTED = 102, CONN_READY = 103, CONN_FINISHED = 104, CONN_CANDIDATE = 201, CONN_SDP = 202, CONN_FAILED = 500;
 
-        if (publishers[to] !== undefined) {
-            var intervarId = setInterval(function () {
-              if (publishers[to]!==undefined){
-                if (wrtc.getCurrentState() >= 103 && publishers[to].getPublisherState() >=103) {
-                    publishers[to].sendFIR();
-                    clearInterval(intervarId);
-                }
-              }
 
-            }, INTERVAL_TIME_FIR);
-        }
-    };
 
     /*
      * Given a WebRtcConnection waits for the state CANDIDATES_GATHERED for set remote SDP.
      */
-    initWebRtcConnection = function (wrtc, sdp, callback, id_pub, id_sub) {
+    initWebRtcConnection = function (wrtc, callback, id_pub, id_sub, browser) {
 
-        if (GLOBAL.config.erizoController.sendStats) {
+        if (GLOBAL.config.erizoController.report.rtcp_stats) {
+          var intervalId = setInterval(function () {
+            var newStats = wrtc.getStats();
+            if (newStats == null){
+              console.log("Stopping stats");
+              clearInterval(intervalId);
+            }
+            console.log("new STATS ", newStats);
+            var timeStamp = new Date();
+            amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: JSON.parse(newStats), timestamp:timeStamp.getTime()});
+          }, INTERVAL_STATS);
+          /*
             wrtc.getStats(function (newStats){
-                rpc.callRpc('stats_handler', 'stats', [{pub: id_pub, subs: id_sub, stats: JSON.parse(newStats)}]);
+                var timeStamp = new Date();
+                amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: JSON.parse(newStats), timestamp:timeStamp.getTime()});
             });
+            */
         }
 
-        wrtc.init( function (newStatus){
-          var localSdp, answer;
-          log.info("webrtc Addon status" + newStatus );
-          if (newStatus === 102 && !sdpDelivered) {
-            localSdp = wrtc.getLocalSdp();
-            answer = getRoap(localSdp, roap);
-            callback('callback', answer);
-            sdpDelivered = true;
+        wrtc.init( function (newStatus, mess){
+            log.info("webrtc Addon status ", newStatus, mess, "id pub", id_pub, "id_sub", id_sub );
 
-          }
-          if (newStatus === 103) {
-            callback('onReady');
-          }
+            if (GLOBAL.config.erizoController.report.connection_events) {
+                var timeStamp = new Date();
+                amqper.broadcast('event', {pub: id_pub, subs: id_sub, type: 'connection_status', status: newStatus, timestamp:timeStamp.getTime()});
+            }
+
+            switch(newStatus) {
+                case CONN_INITIAL:
+                    callback('callback', {type: 'started'});
+                    break;
+
+                case CONN_SDP:
+//                    log.debug('Sending SDP', mess);
+                    callback('callback', {type: 'answer', sdp: mess});
+                    break;
+
+                case CONN_CANDIDATE:
+                    mess = mess.replace(that.privateRegexp, that.publicIP);
+                    callback('callback', {type: 'candidate', candidate: mess});
+                    break;
+
+                case CONN_FAILED:
+                    callback('callback', {type: 'failed'});
+                    break;
+
+                case CONN_READY:
+                    // If I'm a subscriber and I'm bowser, I ask for a PLI
+                    if (id_sub && browser === 'bowser') {
+                        log.info('SENDING PLI from ', id_pub, ' to BOWSER ', id_sub);
+                        publishers[id_pub].wrtc.generatePLIPacket();
+                    }
+                    callback('callback', {type: 'ready'});
+                    break;
+            }
         });
+        log.info("initializing");
 
-        var roap = sdp,
-            remoteSdp = getSdp(roap);
-        wrtc.setRemoteSdp(remoteSdp);
-
-        var sdpDelivered = false;
+        callback('callback', {type: 'initializing'});
     };
 
     /*
@@ -126,8 +144,8 @@ exports.ErizoJSController = function (spec) {
             var muxer = new addon.OneToManyProcessor(),
                 ei = new addon.ExternalInput(url);
 
-            publishers[from] = muxer;
-            subscribers[from] = [];
+            publishers[from] = {muxer: muxer};
+            subscribers[from] = {};
 
             ei.setAudioReceiver(muxer);
             ei.setVideoReceiver(muxer);
@@ -151,17 +169,38 @@ exports.ErizoJSController = function (spec) {
             log.info("Adding ExternalOutput to " + to + " url " + url);
             var externalOutput = new addon.ExternalOutput(url);
             externalOutput.init();
-            publishers[to].addExternalOutput(externalOutput, url);
+            publishers[to].muxer.addExternalOutput(externalOutput, url);
             externalOutputs[url] = externalOutput;
         }
     };
 
     that.removeExternalOutput = function (to, url) {
-      if (externalOutputs[url] !== undefined && publishers[to]!=undefined) {
+      if (externalOutputs[url] !== undefined && publishers[to] !== undefined) {
         log.info("Stopping ExternalOutput: url " + url);
-        publishers[to].removeSubscriber(url);
+        publishers[to].muxer.removeSubscriber(url);
         delete externalOutputs[url];
       }
+    };
+
+    that.processSignaling = function (streamId, peerId, msg) {
+        log.info("Process Signaling message: ", streamId, peerId, msg);
+        if (publishers[streamId] !== undefined) {
+
+            if (subscribers[streamId][peerId]) {
+                if (msg.type === 'offer') {
+                    subscribers[streamId][peerId].setRemoteSdp(msg.sdp);
+                } else if (msg.type === 'candidate') {
+                    subscribers[streamId][peerId].addRemoteCandidate(msg.candidate.sdpMid, msg.candidate.sdpMLineIndex , msg.candidate.candidate);
+                }
+            } else {
+                if (msg.type === 'offer') {
+                    publishers[streamId].wrtc.setRemoteSdp(msg.sdp);
+                } else if (msg.type === 'candidate') {
+                    publishers[streamId].wrtc.addRemoteCandidate(msg.candidate.sdpMid, msg.candidate.sdpMLineIndex, msg.candidate.candidate);
+                }
+            }
+
+        }
     };
 
     /*
@@ -169,7 +208,7 @@ exports.ErizoJSController = function (spec) {
      * and a new WebRtcConnection. This WebRtcConnection will be the publisher
      * of the OneToManyProcessor.
      */
-    that.addPublisher = function (from, sdp, callback) {
+    that.addPublisher = function (from, callback) {
 
         if (publishers[from] === undefined) {
 
@@ -178,15 +217,16 @@ exports.ErizoJSController = function (spec) {
             var muxer = new addon.OneToManyProcessor(),
                 wrtc = new addon.WebRtcConnection(true, true, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport);
 
-            publishers[from] = muxer;
-            publishers[from + "-wrtc"] = wrtc;            
-            subscribers[from] = [];
+            publishers[from] = {muxer: muxer, wrtc: wrtc};
+            // TODO(BF): New ging-master includes rtc object on publishers, so we can get rid of ours
+            publishers[from + "-wrtc"] = wrtc;
+            subscribers[from] = {};
 
             wrtc.setAudioReceiver(muxer);
             wrtc.setVideoReceiver(muxer);
             muxer.setPublisher(wrtc);
 
-            initWebRtcConnection(wrtc, sdp, callback, from);
+            initWebRtcConnection(wrtc, callback, from);
 
             //log.info('Publishers: ', publishers);
             //log.info('Subscribers: ', subscribers);
@@ -213,19 +253,18 @@ exports.ErizoJSController = function (spec) {
      * This WebRtcConnection will be added to the subscribers list of the
      * OneToManyProcessor.
      */
-    that.addSubscriber = function (from, to, audio, video, sdp, callback) {
+    that.addSubscriber = function (from, to, options, callback) {
 
-        if (publishers[to] !== undefined && subscribers[to].indexOf(from) === -1 && sdp.match('OFFER') !== null) {
+        if (publishers[to] !== undefined && subscribers[to][from] === undefined) {
 
-            log.info("Adding subscriber from ", from, 'to ', to, 'audio', audio, 'video', video);
+            log.info("Adding subscriber from ", from, 'to ', to, 'audio', options.audio, 'video', options.video);
 
-            var wrtc = new addon.WebRtcConnection(audio, video, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport);
+            var wrtc = new addon.WebRtcConnection(options.audio, options.video, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport);
 
-            subscribers[to].push(from);
-            publishers[to].addSubscriber(wrtc, from);
+            subscribers[to][from] = wrtc;
+            publishers[to].muxer.addSubscriber(wrtc, from);
 
-            initWebRtcConnection(wrtc, sdp, callback, to, from);
-//            waitForFIR(wrtc, to);
+            initWebRtcConnection(wrtc, callback, to, from, options.browser);
 
             //log.info('Publishers: ', publishers);
             //log.info('Subscribers: ', subscribers);
@@ -239,8 +278,16 @@ exports.ErizoJSController = function (spec) {
 
         if (subscribers[from] !== undefined && publishers[from] !== undefined) {
             log.info('Removing muxer', from);
-            publishers[from].close();
+            for (var key in subscribers[from]) {
+              if (subscribers[from].hasOwnProperty(key)){
+                log.info("Iterating and closing ", key,  subscribers[from], subscribers[from][key]);
+                subscribers[from][key].close();
+              }
+            }
+            publishers[from].wrtc.close();
+            publishers[from].muxer.close();
             log.info('Removing subscribers', from);
+
             delete subscribers[from];
             log.info('Removing publisher', from);
             delete publishers[from];
@@ -263,11 +310,11 @@ exports.ErizoJSController = function (spec) {
      */
     that.removeSubscriber = function (from, to) {
 
-        var index = subscribers[to].indexOf(from);
-        if (index !== -1) {
+        if (subscribers[to][from]) {
             log.info('Removing subscriber ', from, 'to muxer ', to);
-            publishers[to].removeSubscriber(from);
-            subscribers[to].splice(index, 1);
+            subscribers[to][from].close();
+            publishers[to].muxer.removeSubscriber(from);
+            delete subscribers[to][from];
         }
     };
 
@@ -276,16 +323,15 @@ exports.ErizoJSController = function (spec) {
      */
     that.removeSubscriptions = function (from) {
 
-        var key, index;
+        var key;
 
         log.info('Removing subscriptions of ', from);
         for (key in subscribers) {
             if (subscribers.hasOwnProperty(key)) {
-                index = subscribers[key].indexOf(from);
-                if (index !== -1) {
+                 if (subscribers[to][from]) {
                     log.info('Removing subscriber ', from, 'to muxer ', key);
-                    publishers[key].removeSubscriber(from);
-                    subscribers[key].splice(index, 1);
+                    publishers[key].muxer.removeSubscriber(from);
+                    delete subscribers[key][from];
                 }
             }
         }

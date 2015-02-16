@@ -14,6 +14,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/mathematics.h>
+#include <libavutil/time.h>
 }
 
 namespace erizo{
@@ -26,7 +27,7 @@ namespace erizo{
       virtual ~ExternalInput();
       int init();
       void receiveRtpData(unsigned char* rtpdata, int len);
-      int sendFirPacket();
+      int sendPLI();
 
 
     private:

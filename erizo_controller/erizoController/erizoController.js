@@ -28,7 +28,7 @@ if (config.erizoController.turnServer !== undefined) {
 GLOBAL.config.erizoController.warning_n_rooms = GLOBAL.config.erizoController.warning_n_rooms || 15;
 GLOBAL.config.erizoController.limit_n_rooms = GLOBAL.config.erizoController.limit_n_rooms || 20;
 GLOBAL.config.erizoController.interval_time_keepAlive = GLOBAL.config.erizoController.interval_time_keepAlive || 1000;
-GLOBAL.config.erizoController.sendStats = GLOBAL.config.erizoController.sendStats || false;
+GLOBAL.config.erizoController.report.session_events = GLOBAL.config.erizoController.report.session_events || false;
 GLOBAL.config.erizoController.recording_path = GLOBAL.config.erizoController.recording_path || undefined;
 GLOBAL.config.erizoController.roles = GLOBAL.config.erizoController.roles || {"presenter":{"publish": true, "subscribe":true, "record":true}, "viewer":{"subscribe":true}, "viewerWithData":{"subscribe":true, "publish":{"audio":false,"video":false,"screen":false,"data":true}}};
 
@@ -82,7 +82,7 @@ for (var prop in opt.options) {
 
 // Load submodules with updated config
 var logger = require('./../common/logger').logger;
-var rpc = require('./../common/rpc');
+var amqper = require('./../common/amqper');
 var controller = require('./roomController');
 
 // Logger
@@ -190,7 +190,7 @@ var addToCloudHandler = function (callback) {
             port: GLOBAL.config.erizoController.port,
             ssl: GLOBAL.config.erizoController.ssl
         };
-        rpc.callRpc('nuve', 'addNewErizoController', controller, {callback: function (msg) {
+        amqper.callRpc('nuve', 'addNewErizoController', controller, {callback: function (msg) {
 
             if (msg === 'timeout') {
                 log.info('CloudHandler does not respond');
@@ -212,13 +212,13 @@ var addToCloudHandler = function (callback) {
 
             var intervarId = setInterval(function () {
 
-                rpc.callRpc('nuve', 'keepAlive', myId, {"callback": function (result) {
+                amqper.callRpc('nuve', 'keepAlive', myId, {"callback": function (result) {
                     if (result === 'whoareyou') {
 
                         // TODO: It should try to register again in Cloud Handler. But taking into account current rooms, users, ...
                         log.info('I don`t exist in cloudHandler. I`m going to be killed');
                         clearInterval(intervarId);
-                        rpc.callRpc('nuve', 'killMe', publicIP, {callback: function () {}});
+                        amqper.callRpc('nuve', 'killMe', publicIP, {callback: function () {}});
                     }
                 }});
 
@@ -266,7 +266,7 @@ var updateMyState = function () {
     myState = newState;
 
     info = {id: myId, state: myState};
-    rpc.callRpc('nuve', 'setInfo', info, {callback: function () {}});
+    amqper.callRpc('nuve', 'setInfo', info, {callback: function () {}});
 };
 
 var listen = function () {
@@ -279,13 +279,13 @@ var listen = function () {
         // Then registers it in the room and callback to the client.
         socket.on('token', function (token, callback) {
 
-            log.debug("New token", token);
+            //log.debug("New token", token);
 
             var tokenDB, user, streamList = [], index;
 
             if (checkSignature(token, nuveKey)) {
 
-                rpc.callRpc('nuve', 'deleteToken', token.tokenId, {callback: function (resp) {
+                amqper.callRpc('nuve', 'deleteToken', token.tokenId, {callback: function (resp) {
                     if (resp === 'error') {
                         log.info('Token does not exist');
                         callback('error', 'Token does not exist');
@@ -309,7 +309,7 @@ var listen = function () {
                                 log.debug('Token of p2p room');
                                 room.p2p = true;
                             } else {
-                                room.controller = controller.RoomController({rpc: rpc});
+                                room.controller = controller.RoomController({amqper: amqper});
                                 room.controller.addEventListener(function(type, event) {
                                     // TODO Send message to room? Handle ErizoJS disconnection.
                                     if (type === "unpublish") {
@@ -318,10 +318,14 @@ var listen = function () {
                                         sendMsgToRoom(room, 'onRemoveStream', {id: streamId});
                                         room.controller.removePublisher(streamId);
 
-                                        var index = socket.streams.indexOf(streamId);
-                                        if (index !== -1) {
-                                            socket.streams.splice(index, 1);
+                                        for (var s in room.sockets) {
+                                            var streams = io.sockets.socket(room.sockets[s]).streams;
+                                            var index = streams.indexOf(streamId);
+                                            if (index !== -1) {
+                                                streams.splice(index, 1);
+                                            }
                                         }
+
                                         if (room.streams[streamId]) {
                                             delete room.streams[streamId];
                                         }
@@ -347,8 +351,9 @@ var listen = function () {
 
                         log.debug('OK, Valid token');
 
-                        if (!tokenDB.p2p && GLOBAL.config.erizoController.sendStats) {
-                            rpc.callRpc('stats_handler', 'event', [{room: tokenDB.room, user: socket.id, type: 'connection'}]);
+                        if (!tokenDB.p2p && GLOBAL.config.erizoController.report.session_events) {
+                            var timeStamp = new Date();
+                            amqper.broadcast('event', {room: tokenDB.room, user: socket.id, type: 'user_connection', timestamp:timeStamp.getTime()});
                         }
 
                         for (index in socket.room.streams) {
@@ -382,6 +387,10 @@ var listen = function () {
 
         //Gets 'sendDataStream' messages on the socket in order to write a message in a dataStream.
         socket.on('sendDataStream', function (msg) {
+            if  (socket.room.streams[msg.id] === undefined){
+              log.warn('Trying to send Data from a non-initialized stream ', msg);
+              return;
+            }
             var sockets = socket.room.streams[msg.id].getDataSubscribers(), id;
             for (id in sockets) {
                 if (sockets.hasOwnProperty(id)) {
@@ -391,8 +400,20 @@ var listen = function () {
             }
         });
 
+        socket.on('signaling_message', function (msg) {
+            if (socket.room.p2p) {
+                io.sockets.socket(msg.peerSocket).emit('signaling_message_peer', {streamId: msg.streamId, peerSocket: socket.id, msg: msg.msg});
+            } else {
+                socket.room.controller.processSignaling(msg.streamId, socket.id, msg.msg);
+            }
+        });
+
         //Gets 'updateStreamAttributes' messages on the socket in order to update attributes from the stream.
         socket.on('updateStreamAttributes', function (msg) {
+            if  (socket.room.streams[msg.id] === undefined){
+              log.warn('Trying to update atributes from a non-initialized stream ', msg);
+              return;
+            }
             var sockets = socket.room.streams[msg.id].getDataSubscribers(), id;
             socket.room.streams[msg.id].setAttributes(msg.attrs);
             for (id in sockets) {
@@ -416,9 +437,10 @@ var listen = function () {
                     if ((options[right] === true) && (permissions[right] === false))
                         return callback('error', 'unauthorized');
                 }
-            }
+            } 
+            id = Math.random() * 1000000000000000000;
+
             if (options.state === 'url' || options.state === 'recording') {
-                id = Math.random() * 1000000000000000000;
                 var url = sdp;
                 if (options.state === 'recording') {
                     var recordingId = sdp;
@@ -439,40 +461,51 @@ var listen = function () {
                         callback(result);
                     }
                 });
-            } else if (options.state !== 'data' && !socket.room.p2p) {
-                if (options.state === 'offer' && socket.state === 'sleeping') {
-                    id = Math.random() * 1000000000000000000;
-                    socket.room.controller.addPublisher(id, sdp, function (answer) {
-                        socket.state = 'waitingOk';
-                        answer = answer.replace(privateRegexp, publicIP);
-                        callback(answer, id);
-                    }, function() {
-                        if (socket.room.streams[id] !== undefined) {
-                            sendMsgToRoom(socket.room, 'onAddStream', socket.room.streams[id].getPublicStream());
-                        }
-                        if (GLOBAL.config.erizoController.sendStats) {
-                            rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'publish', stream: id}]);
-                        }
-                    });
+            } else if (options.state === 'erizo') {
+                log.info("New publisher");
+                
+                socket.room.controller.addPublisher(id, function (signMess) {
 
-                } else if (options.state === 'ok' && socket.state === 'waitingOk') {
-                    st = new ST.Stream({id: options.streamId, socket: socket.id, audio: options.audio, video: options.video, data: options.data, screen: options.screen, attributes: options.attributes});
-                    socket.state = 'sleeping';
-                    socket.streams.push(options.streamId);
-                    socket.room.streams[options.streamId] = st;
-                }
-            } else if (options.state === 'p2pSignaling') {
-                io.sockets.socket(options.subsSocket).emit('onPublishP2P', {sdp: sdp, streamId: options.streamId}, function(answer) {
-                    callback(answer);
+                    if (signMess.type === 'initializing') {
+                        callback(undefined, id);
+                        st = new ST.Stream({id: id, socket: socket.id, audio: options.audio, video: options.video, data: options.data, screen: options.screen, attributes: options.attributes});
+                        socket.streams.push(id);
+
+                        if (GLOBAL.config.erizoController.report.session_events) {
+                            var timeStamp = new Date();
+                            amqper.broadcast('event', {room: socket.room.id, user: socket.id, name: socket.user.name, type: 'publish', stream: id, timestamp: timeStamp.getTime()});
+                        }
+                        return;
+                    } else if (signMess.type ==='failed'){
+                        log.info("IceConnection Failed on publisher, removing " , id);
+                        socket.emit('connection_failed',{});
+                        socket.state = 'sleeping';
+                        if (!socket.room.p2p) {
+                            socket.room.controller.removePublisher(streamId);
+                            if (GLOBAL.config.erizoController.report.session_events) {
+                                var timeStamp = new Date();
+                                amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'failed', stream: streamId, timestamp: timeStamp.getTime()});
+                            }
+                        }
+
+                        var index = socket.streams.indexOf(streamId);
+                        if (index !== -1) {
+                            socket.streams.splice(index, 1);
+                        }
+                        return;
+                    } else if (signMess.type === 'ready') {
+                        socket.room.streams[id] = st;
+                        sendMsgToRoom(socket.room, 'onAddStream', st.getPublicStream());
+                    }
+
+                    socket.emit('signaling_message_erizo', {mess: signMess, streamId: id});
                 });
             } else {
-                id = Math.random() * 1000000000000000000;
                 st = new ST.Stream({id: id, socket: socket.id, audio: options.audio, video: options.video, data: options.data, screen: options.screen, attributes: options.attributes});
                 socket.streams.push(id);
                 socket.room.streams[id] = st;
-                callback(undefined, id);
+                callback(id);
                 sendMsgToRoom(socket.room, 'onAddStream', st.getPublicStream());
-
             }
         });
 
@@ -483,10 +516,12 @@ var listen = function () {
 
         //Gets 'subscribe' messages on the socket in order to add new subscriber to a determined stream (options.streamId).
         socket.on('subscribe', function (options, sdp, callback) {
+            //log.info("Subscribing", options, callback);
             if (socket.user === undefined || !socket.user.permissions[Permission.SUBSCRIBE]) {
                 callback('error', 'unauthorized');
                 return;
             }
+
             if (socket.user.permissions[Permission.SUBSCRIBE] !== true) {
                 var permissions = socket.user.permissions[Permission.SUBSCRIBE];
                 for (var right in permissions) {
@@ -509,20 +544,29 @@ var listen = function () {
 
                 if (socket.room.p2p) {
                     var s = stream.getSocket();
-                    io.sockets.socket(s).emit('onSubscribeP2P', {streamId: options.streamId, subsSocket: socket.id}, function(offer) {
-                        callback(offer);
-                    });
+                    io.sockets.socket(s).emit('publish_me', {streamId: options.streamId, peerSocket: socket.id});
 
                 } else {
-                    socket.room.controller.addSubscriber(socket.id, options.streamId, options.audio, options.video, sdp, function (answer) {
-                        answer = answer.replace(privateRegexp, publicIP);
-                        callback(answer);
-                    }, function() {
-                        if (GLOBAL.config.erizoController.sendStats) {
-                            rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'subscribe', stream: options.streamId}]);
+                    socket.room.controller.addSubscriber(socket.id, options.streamId, options, function (signMess) {
+
+                        if (signMess.type === 'initializing') {
+                            log.info("Initializing subscriber");
+                            callback('initializing');
+
+                            if (GLOBAL.config.erizoController.report.session_events) {
+                                var timeStamp = new Date();
+                                amqper.broadcast('event', {room: socket.room.id, user: socket.id, name: socket.user.name, type: 'subscribe', stream: options.streamId, timestamp: timeStamp.getTime()});
+                            }
+                            return;
                         }
-                        log.info("Subscriber added");
+
+                        // if (signMess.type === 'candidate') {
+                        //     signMess.candidate = signMess.candidate.replace(privateRegexp, publicIP);
+                        // }
+                        socket.emit('signaling_message_erizo', {mess: signMess, peerId: options.streamId});
                     });
+
+                    log.info("Subscriber added");
                 }
             } else {
                 callback(undefined);
@@ -600,8 +644,9 @@ var listen = function () {
                 socket.state = 'sleeping';
                 if (!socket.room.p2p) {
                     socket.room.controller.removePublisher(streamId);
-                    if (GLOBAL.config.erizoController.sendStats) {
-                        rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'unpublish', stream: streamId}]);
+                    if (GLOBAL.config.erizoController.report.session_events) {
+                        var timeStamp = new Date();
+                        amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'unpublish', stream: streamId, timestamp: timeStamp.getTime()});
                     }
                 }
             }
@@ -631,8 +676,9 @@ var listen = function () {
             if (socket.room.streams[to].hasAudio() || socket.room.streams[to].hasVideo() || socket.room.streams[to].hasScreen()) {
                 if (!socket.room.p2p) {
                     socket.room.controller.removeSubscriber(socket.id, to);
-                    if (GLOBAL.config.erizoController.sendStats) {
-                        rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'unsubscribe', stream: to}]);
+                    if (GLOBAL.config.erizoController.report.session_events) {
+                        var timeStamp = new Date();
+                        amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'unsubscribe', stream: to, timestamp:timeStamp.getTime()});
                     }
                 };
             }
@@ -671,26 +717,26 @@ var listen = function () {
                 for (i in socket.streams) {
                     if (socket.streams.hasOwnProperty(i)) {
                         id = socket.streams[i];
-
-                        if (socket.room.streams[id].hasAudio() || socket.room.streams[id].hasVideo() || socket.room.streams[id].hasScreen()) {
-                            if (!socket.room.p2p) {
-                                socket.room.controller.removePublisher(id);
-                                if (GLOBAL.config.erizoController.sendStats) {
-                                    rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'unpublish', stream: id}]);
+                        if( socket.room.streams[id]) {
+                            if (socket.room.streams[id].hasAudio() || socket.room.streams[id].hasVideo() || socket.room.streams[id].hasScreen()) {
+                                if (!socket.room.p2p) {
+                                    socket.room.controller.removePublisher(id);
+                                    if (GLOBAL.config.erizoController.report.session_events) {
+                                        var timeStamp = new Date();
+                                        amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'unpublish', stream: id, timestamp: timeStamp.getTime()});
+                                    }
                                 }
                             }
 
-                        }
-
-                        if (socket.room.streams[id]) {
                             delete socket.room.streams[id];
                         }
                     }
                 }
             }
 
-            if (socket.room !== undefined && !socket.room.p2p && GLOBAL.config.erizoController.sendStats) {
-                rpc.callRpc('stats_handler', 'event', [{room: socket.room.id, user: socket.id, type: 'disconnection'}]);
+            if (socket.room !== undefined && !socket.room.p2p && GLOBAL.config.erizoController.report.session_events) {
+                var timeStamp = new Date();
+                amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'user_disconnection', timestamp: timeStamp.getTime()});
             }
 
             if (socket.room !== undefined && socket.room.sockets.length === 0) {
@@ -807,15 +853,15 @@ exports.deleteRoom = function (room, callback) {
     log.info('Deleted room ', room, rooms);
     callback('Success');
 };
-rpc.connect(function () {
+amqper.connect(function () {
     "use strict";
     try {
-        rpc.setPublicRPC(rpcPublic);
+        amqper.setPublicRPC(rpcPublic);
 
         addToCloudHandler(function () {
             var rpcID = 'erizoController_' + myId;
 
-            rpc.bind(rpcID, listen);
+            amqper.bind(rpcID, listen);
 
         });
     } catch (error) {
