@@ -442,11 +442,11 @@ Erizo.Room = function (spec) {
     };
 
     that.renegotiate = function(stream) {
-        console.log("[renegotiate] state of pc", stream.pc.state);
-        if (stream.pc.state !== "established") {
-            console.log("[renegotiate] aborted due to bad state");
-            return;
-        }
+        console.log("[renegotiate] ", stream.pc.maxVideoBW);
+        // if (stream.pc.state !== "established") {
+        //     console.log("[renegotiate] aborted due to bad state");
+        //     return;
+        // }
         stream.pc.onsignalingmessage = function(offer) {
             stream.pc.onsignalingmessage = function() {};
             sendSDPSocket('renegotiate', stream.getID(), offer, function(answer) {
