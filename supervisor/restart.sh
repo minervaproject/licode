@@ -4,7 +4,7 @@ sudo pkill node
 
 sudo supervisorctl stop licode_basic_server
 sudo supervisorctl stop erizo
-sudo supervisorctl start erizo_agent
+sudo supervisorctl stop erizo_agent
 sudo supervisorctl stop nuve
 
 sudo supervisorctl start nuve
