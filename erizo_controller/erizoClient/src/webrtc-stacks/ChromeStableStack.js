@@ -182,7 +182,7 @@ Erizo.ChromeStableStack = function (spec) {
         }
     };
 
-    var localDesc;
+    var localDesc, remoteDesc;
 
     var setLocalDesc = function (sessionDescription) {
         sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
@@ -210,6 +210,23 @@ Erizo.ChromeStableStack = function (spec) {
       }
     };
 
+    that.updateBandwidth = function() {
+       var sessionDescription = localDesc;
+       sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+       sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
+       that.peerConnection.setLocalDescription(sessionDescription, function() {
+           var as = remoteDesc.sdp.match(/b=AS:.*\r\n/g);
+           if (as == null) {
+             as = remoteDesc.sdp.match(/b=AS:.*\n/g);
+           }
+           _.each(as, function(a) {
+             remoteDesc.sdp = remoteDesc.sdp.replace(a, "");
+           });
+           remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+           that.peerConnection.setRemoteDescription(remoteDesc);
+       });
+    };
+
     that.addStream = function (stream) {
         that.peerConnection.addStream(stream);
     };
@@ -218,7 +235,7 @@ Erizo.ChromeStableStack = function (spec) {
     spec.remoteDescriptionSet = false;
 
     that.processSignalingMessage = function (msg) {
-        //console.log("Process Signaling Message", msg);
+        console.log("Process Signaling Message", msg);
 
         if (msg.type === 'offer') {
             msg.sdp = setMaxBW(msg.sdp);
@@ -242,7 +259,8 @@ Erizo.ChromeStableStack = function (spec) {
             msg.sdp = setAudioCodec(msg.sdp);
 
             that.peerConnection.setLocalDescription(localDesc, function(){
-              that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function() {
+              remoteDesc = new RTCSessionDescription(msg);
+              that.peerConnection.setRemoteDescription(remoteDesc, function() {
                 spec.remoteDescriptionSet = true;
                 console.log("Candidates to be added: ", spec.remoteCandidates.length, spec.remoteCandidates);
                 while (spec.remoteCandidates.length > 0) {
