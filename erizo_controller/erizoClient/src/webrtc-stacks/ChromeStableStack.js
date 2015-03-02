@@ -100,6 +100,20 @@ Erizo.ChromeStableStack = function (spec) {
         return sdp;
     };
 
+    var removeRemb = function (sdp) {
+        var a = sdp.match(/a=rtcp-fb:100 goog-remb\r\n/);
+        console.log("BEFORE REMB remove", sdp);
+        if (a === null){
+          a = sdp.match(/a=rtcp-fb:100 goog-remb\n/);
+        }
+        if (a) {
+            sdp = sdp.replace(a[0], "");
+        } else {
+            console.error("Failed to find SDP line:", sdp);
+        }
+        console.log("AFTER REMB remove", sdp);
+        return sdp;
+    };
 
     var setAudioCodec = function(sdp) {
         var temp;
@@ -187,6 +201,7 @@ Erizo.ChromeStableStack = function (spec) {
     var setLocalDesc = function (sessionDescription) {
         sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
+        sessionDescription.sdp = removeRemb(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
         spec.callback(sessionDescription);
         localDesc = sessionDescription;
