@@ -102,16 +102,12 @@ Erizo.ChromeStableStack = function (spec) {
 
     var removeRemb = function (sdp) {
         var a = sdp.match(/a=rtcp-fb:100 goog-remb\r\n/);
-        console.log("BEFORE REMB remove", sdp);
         if (a === null){
           a = sdp.match(/a=rtcp-fb:100 goog-remb\n/);
         }
         if (a) {
             sdp = sdp.replace(a[0], "");
-        } else {
-            console.error("Failed to find SDP line:", sdp);
         }
-        console.log("AFTER REMB remove", sdp);
         return sdp;
     };
 
