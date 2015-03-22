@@ -80,6 +80,14 @@ Erizo.ChromeStableStack = function (spec) {
     };
 
     var setMaxBW = function (sdp) {
+        var as = sdp.match(/b=AS:.*\r\n/g);
+        if (as == null) {
+          as = sdp.match(/b=AS:.*\n/g);
+        }
+        _.each(as, function(a) {
+          sdp = sdp.replace(a, "");
+        });
+
         if (spec.video && that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
             if (a == null){
