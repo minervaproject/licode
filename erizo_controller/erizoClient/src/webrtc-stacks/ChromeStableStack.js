@@ -274,8 +274,6 @@ Erizo.ChromeStableStack = function (spec) {
            remoteDesc.sdp = changeAudioConnectionType(remoteDesc.sdp, val);
            that.peerConnection.setRemoteDescription(remoteDesc);
        });
-       console.log("publishAudio", val);
-       console.log(localDesc.sdp);
     };
 
     that.addStream = function (stream) {
