@@ -446,7 +446,9 @@ Erizo.Room = function (spec) {
         stream.pc.updateBandwidth();
     };
 
-
+    that.publishAudio = function(stream, val) {
+      stream.pc.publishAudio(val);
+    };
 
     that.startRecording = function (stream, callback, callbackError) {
       sendMessageSocket('startRecorder',{to:stream.getID()}, callback, callbackError);

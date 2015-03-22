@@ -111,6 +111,28 @@ Erizo.ChromeStableStack = function (spec) {
         return sdp;
     };
 
+    var changeAudioConnectionType = function(sdp, makeActive) {
+      var k1 = sdp.indexOf("m=audio");
+      var k2 = sdp.indexOf("m=video");
+      if (k2 === -1) {
+        k2 = sdp.length;
+      }
+      if (k1 > k2) {
+        var tmp = k2;
+        k2 = k1;
+        k1 = k2;
+      }
+      var p1 = sdp.slice(0,k1);
+      var p2 = sdp.slice(k1,k2);
+      var p3 = sdp.slice(k2);
+      if (makeActive) {
+        p2 = p2.replace("a=inactive", "a=sendrecv");
+      } else {
+        p2 = p2.replace("a=sendrecv", "a=inactive");
+      }
+      return p1 + p2 + p3;
+    };
+
     var setAudioCodec = function(sdp) {
         var temp;
         if (that.audioCodec) {
@@ -236,6 +258,16 @@ Erizo.ChromeStableStack = function (spec) {
            remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
            that.peerConnection.setRemoteDescription(remoteDesc);
        });
+    };
+
+    that.publishAudio = function(val) {
+       localDesc.sdp = changeAudioConnectionType(localDesc.sdp, val);
+       that.peerConnection.setLocalDescription(localDesc, function() {
+           remoteDesc.sdp = changeAudioConnectionType(remoteDesc.sdp, val);
+           that.peerConnection.setRemoteDescription(remoteDesc);
+       });
+       console.log("publishAudio", val);
+       console.log(localDesc.sdp);
     };
 
     that.addStream = function (stream) {
