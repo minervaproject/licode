@@ -84,9 +84,12 @@ Erizo.ChromeStableStack = function (spec) {
         if (as == null) {
           as = sdp.match(/b=AS:.*\n/g);
         }
-        _.each(as, function(a) {
-          sdp = sdp.replace(a, "");
-        });
+
+        if (as) {
+          for (var i=0; i<as.length; i++) {
+            sdp = sdp.replace(as[i], "");
+          }
+        }
 
         if (spec.video && that.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
@@ -256,15 +259,17 @@ Erizo.ChromeStableStack = function (spec) {
        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
        sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
        that.peerConnection.setLocalDescription(sessionDescription, function() {
-           var as = remoteDesc.sdp.match(/b=AS:.*\r\n/g);
-           if (as == null) {
-             as = remoteDesc.sdp.match(/b=AS:.*\n/g);
+         var as = remoteDesc.sdp.match(/b=AS:.*\r\n/g);
+         if (as === null) {
+           as = remoteDesc.sdp.match(/b=AS:.*\n/g);
+         }
+         if (as) {
+           for (var i=0; i<as.length; i++) {
+             remoteDesc.sdp = remoteDesc.sdp.replace(as[1], "");
            }
-           _.each(as, function(a) {
-             remoteDesc.sdp = remoteDesc.sdp.replace(a, "");
-           });
-           remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
-           that.peerConnection.setRemoteDescription(remoteDesc);
+         }
+         remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+         that.peerConnection.setRemoteDescription(remoteDesc);
        });
     };
 
