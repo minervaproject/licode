@@ -75,11 +75,12 @@ window.onload = function () {
 
         });
 
-        room.addEventListener("stream-added", function (streamEvent) {
-          var streams = [];
-          streams.push(streamEvent.stream);
-          subscribeToStreams(streams);
-        });
+      room.addEventListener("stream-added", function (streamEvent) {
+        var streams = [];
+        streams.push(streamEvent.stream);
+        subscribeToStreams(streams);
+        document.getElementById("recordButton").disabled = false;
+      });
 
       room.addEventListener("stream-removed", function (streamEvent) {
         // Remove stream from DOM

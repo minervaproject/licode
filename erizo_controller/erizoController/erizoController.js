@@ -51,6 +51,9 @@ var getopt = new Getopt([
   ['h' , 'help'                       , 'display this help']
 ]);
 
+var PUBLISHER_INITAL = 101, PUBLISHER_READY = 104;
+
+
 opt = getopt.parse(process.argv.slice(2));
 
 for (var prop in opt.options) {
@@ -358,7 +361,9 @@ var listen = function () {
 
                         for (index in socket.room.streams) {
                             if (socket.room.streams.hasOwnProperty(index)) {
-                                streamList.push(socket.room.streams[index].getPublicStream());
+                                if (socket.room.streams[index].status == PUBLISHER_READY){
+                                    streamList.push(socket.room.streams[index].getPublicStream());
+                                }
                             }
                         }
 
@@ -424,18 +429,19 @@ var listen = function () {
             }
         });
 
-        //Gets 'publish' messages on the socket in order to add new stream to the room.
+        // Gets 'publish' messages on the socket in order to add new stream to the room.
+        // Returns callback(id, error)
         socket.on('publish', function (options, sdp, callback) {
             var id, st;
             if (socket.user === undefined || !socket.user.permissions[Permission.PUBLISH]) {
-                callback('error', 'unauthorized');
+                callback(null, 'Unauthorized');
                 return;
             }
             if (socket.user.permissions[Permission.PUBLISH] !== true) {
                 var permissions = socket.user.permissions[Permission.PUBLISH];
                 for (var right in permissions) {
                     if ((options[right] === true) && (permissions[right] === false))
-                        return callback('error', 'unauthorized');
+                        return callback(null, 'Unauthorized');
                 }
             } 
             id = Math.random() * 1000000000000000000;
@@ -455,10 +461,10 @@ var listen = function () {
                         st = new ST.Stream({id: id, socket: socket.id, audio: options.audio, video: options.video, data: options.data, attributes: options.attributes});
                         socket.streams.push(id);
                         socket.room.streams[id] = st;
-                        callback(result, id);
+                        callback(id);
                         sendMsgToRoom(socket.room, 'onAddStream', st.getPublicStream());
                     } else {
-                        callback(result);
+                        callback(null, 'Error adding External Input');
                     }
                 });
             } else if (options.state === 'erizo') {
@@ -467,9 +473,11 @@ var listen = function () {
                 socket.room.controller.addPublisher(id, function (signMess) {
 
                     if (signMess.type === 'initializing') {
-                        callback(undefined, id);
+                        callback(id);
                         st = new ST.Stream({id: id, socket: socket.id, audio: options.audio, video: options.video, data: options.data, screen: options.screen, attributes: options.attributes});
                         socket.streams.push(id);
+                        socket.room.streams[id] = st;
+                        st.status = PUBLISHER_INITAL;
 
                         if (GLOBAL.config.erizoController.report.session_events) {
                             var timeStamp = new Date();
@@ -494,8 +502,10 @@ var listen = function () {
                         }
                         return;
                     } else if (signMess.type === 'ready') {
-                        socket.room.streams[id] = st;
+                        st.status = PUBLISHER_READY;
                         sendMsgToRoom(socket.room, 'onAddStream', st.getPublicStream());
+                    } else if (signMess === 'timeout') {
+                        callback(undefined, 'No ErizoAgents available');
                     }
 
                     socket.emit('signaling_message_erizo', {mess: signMess, streamId: id});
@@ -504,6 +514,7 @@ var listen = function () {
                 st = new ST.Stream({id: id, socket: socket.id, audio: options.audio, video: options.video, data: options.data, screen: options.screen, attributes: options.attributes});
                 socket.streams.push(id);
                 socket.room.streams[id] = st;
+                st.status = PUBLISHER_READY;
                 callback(id);
                 sendMsgToRoom(socket.room, 'onAddStream', st.getPublicStream());
             }
@@ -515,10 +526,11 @@ var listen = function () {
         });
 
         //Gets 'subscribe' messages on the socket in order to add new subscriber to a determined stream (options.streamId).
+        // Returns callback(result, error)
         socket.on('subscribe', function (options, sdp, callback) {
             //log.info("Subscribing", options, callback);
             if (socket.user === undefined || !socket.user.permissions[Permission.SUBSCRIBE]) {
-                callback('error', 'unauthorized');
+                callback(null, 'Unauthorized');
                 return;
             }
 
@@ -526,7 +538,7 @@ var listen = function () {
                 var permissions = socket.user.permissions[Permission.SUBSCRIBE];
                 for (var right in permissions) {
                     if ((options[right] === true) && (permissions[right] === false))
-                        return callback('error', 'unauthorized');
+                        return callback(null, 'Unauthorized');
                 }
             }
 
@@ -551,7 +563,7 @@ var listen = function () {
 
                         if (signMess.type === 'initializing') {
                             log.info("Initializing subscriber");
-                            callback('initializing');
+                            callback(true);
 
                             if (GLOBAL.config.erizoController.report.session_events) {
                                 var timeStamp = new Date();
@@ -569,15 +581,16 @@ var listen = function () {
                     log.info("Subscriber added");
                 }
             } else {
-                callback(undefined);
+                callback(true);
             }
 
         });
 
-        //Gets 'startRecorder' messages
+        // Gets 'startRecorder' messages
+        // Returns callback(id, error)
         socket.on('startRecorder', function (options, callback) {
             if (socket.user === undefined || !socket.user.permissions[Permission.RECORD]) {
-                callback('error', 'unauthorized');
+                callback(null, 'Unauthorized');
                 return;
             }
             var streamId = options.to;
@@ -596,20 +609,22 @@ var listen = function () {
                 socket.room.controller.addExternalOutput(streamId, url, function (result) {
                     if (result === 'success') {
                         log.info("erizoController.js: Recorder Started");
-                        callback('success', recordingId);
+                        callback(recordingId);
                     } else {
-                        callback('error', 'This stream is not published in this room');
+                        callback(null, 'This stream is not published in this room');
                     }
                 });
 
             } else {
-                callback('error', 'Stream can not be recorded');
+                callback(null, 'Stream can not be recorded');
             }
         });
-
+        
+        // Gets 'stopRecorder' messages
+        // Returns callback(result, error)
         socket.on('stopRecorder', function (options, callback) {
             if (socket.user === undefined || !socket.user.permissions[Permission.RECORD]) {
-                if (callback) callback('error', 'unauthorized');
+                if (callback) callback(null, 'Unauthorized');
                 return;
             }
             var recordingId = options.id;
@@ -626,9 +641,10 @@ var listen = function () {
         });
 
         //Gets 'unpublish' messages on the socket in order to remove a stream from the room.
+        // Returns callback(result, error)
         socket.on('unpublish', function (streamId, callback) {
             if (socket.user === undefined || !socket.user.permissions[Permission.PUBLISH]) {
-                if (callback) callback('error', 'unauthorized');
+                if (callback) callback(null, 'Unauthorized');
                 return;
             }
 
@@ -658,13 +674,14 @@ var listen = function () {
             if (socket.room.streams[streamId]) {
                 delete socket.room.streams[streamId];
             }
-
+            callback(true);
         });
 
         //Gets 'unsubscribe' messages on the socket in order to remove a subscriber from a determined stream (to).
+        // Returns callback(result, error)
         socket.on('unsubscribe', function (to, callback) {
             if (!socket.user.permissions[Permission.SUBSCRIBE]) {
-                if (callback) callback('error', 'unauthorized');
+                if (callback) callback(null, 'unauthorized');
                 return;
             }
             if (socket.room.streams[to] === undefined) {
@@ -682,7 +699,7 @@ var listen = function () {
                     }
                 };
             }
-
+            callback(true);
         });
 
         //When a client leaves the room erizoController removes its streams from the room if exists.

@@ -89,6 +89,7 @@ struct RtpMap {
   MediaType mediaType;
   unsigned int channels;
   std::vector<std::string> feedbackTypes;
+  std::map<std::string, std::string> formatParameters;
 };
 /**
  * Contains the information of a single SDP.
@@ -112,7 +113,7 @@ public:
      * Adds a new candidate.
      * @param info The CandidateInfo containing the new candidate
      */
-    void addCandidate(const CandidateInfo& info);
+    std::string addCandidate(const CandidateInfo& info);
     /**
      * Adds SRTP info.
      * @param info The CryptoInfo containing the information.
@@ -182,7 +183,7 @@ public:
     /**
      * The audio and video SSRCs for this particular SDP.
      */
-    unsigned int audioSsrc, videoSsrc;
+    unsigned int audioSsrc, videoSsrc, videoRtxSsrc;
     /**
     * Is it Bundle
     */
@@ -214,11 +215,11 @@ public:
     /**
     * Mapping from internal PT (key) to external PT (value)
     */
-    std::map<const int, int> inOutPTMap;
+    std::map<int, int> inOutPTMap;
     /**
     * Mapping from external PT (key) to intermal PT (value)
     */
-    std::map<const int, int> outInPTMap;
+    std::map<int, int> outInPTMap;
     /**
      * The negotiated payload list
      */
@@ -233,6 +234,7 @@ public:
 private:
     bool processSdp(const std::string& sdp, const std::string& media);
     bool processCandidate(std::vector<std::string>& pieces, MediaType mediaType);
+    std::string stringifyCandidate(const CandidateInfo & candidate);
     void gen_random(char* s, int len);
     std::vector<CandidateInfo> candidateVector_;
     std::vector<CryptoInfo> cryptoVector_;

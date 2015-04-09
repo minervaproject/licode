@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <boost/scoped_ptr.hpp>
 #include <boost/thread.hpp>
 
 #include "MediaDefinitions.h"
@@ -42,7 +43,7 @@ struct CandidatePair{
  * States of ICE
  */
 enum IceState {
-	NICE_INITIAL, NICE_CANDIDATES_GATHERED, NICE_CANDIDATES_RECEIVED, NICE_READY, NICE_FINISHED, NICE_FAILED
+	NICE_INITIAL, NICE_CANDIDATES_RECEIVED, NICE_READY, NICE_FINISHED, NICE_FAILED
 };
 
 class NiceConnectionListener {

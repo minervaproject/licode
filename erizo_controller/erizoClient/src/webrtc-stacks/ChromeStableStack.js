@@ -201,10 +201,16 @@ Erizo.ChromeStableStack = function (spec) {
                 event.candidate.candidate ="a="+event.candidate.candidate;
             };
 
+            var candidateObject = {
+                sdpMLineIndex: event.candidate.sdpMLineIndex,
+                sdpMid: event.candidate.sdpMid,
+                candidate: event.candidate.candidate
+            };
+
             if (spec.remoteDescriptionSet) {
-                spec.callback({type:'candidate', candidate: event.candidate});
+                spec.callback({type:'candidate', candidate: candidateObject});
             } else {
-                spec.localCandidates.push(event.candidate);
+                spec.localCandidates.push(candidateObject);
                 console.log("Local Candidates stored: ", spec.localCandidates.length, spec.localCandidates);
             }
 
@@ -232,7 +238,10 @@ Erizo.ChromeStableStack = function (spec) {
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
         sessionDescription.sdp = removeRemb(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
-        spec.callback(sessionDescription);
+        spec.callback({
+            type: sessionDescription.type,
+            sdp: sessionDescription.sdp
+        });
         localDesc = sessionDescription;
         //that.peerConnection.setLocalDescription(sessionDescription);
     }
@@ -241,7 +250,10 @@ Erizo.ChromeStableStack = function (spec) {
         sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
-        spec.callback(sessionDescription);
+        spec.callback({
+            type: sessionDescription.type,
+            sdp: sessionDescription.sdp
+        });
         localDesc = sessionDescription;
         that.peerConnection.setLocalDescription(sessionDescription);
     }
