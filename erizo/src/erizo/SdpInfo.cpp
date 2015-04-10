@@ -81,7 +81,7 @@ namespace erizo {
     ulpfec.channels = 1;
     ulpfec.mediaType = VIDEO_TYPE;
     internalPayloadVector_.push_back(ulpfec);
-*/
+
     RtpMap opus;
     opus.payloadType = OPUS_48000_PT;
     opus.encodingName = "opus";
@@ -174,7 +174,7 @@ namespace erizo {
     candidateVector_.push_back(info);
     return stringifyCandidate(info);
   }
-  
+
   std::string SdpInfo::stringifyCandidate(const CandidateInfo & candidate){
     std::string generation = " generation 0";
     std::string hostType_str;
@@ -209,7 +209,7 @@ namespace erizo {
     sdp << generation;
     return sdp.str();
   }
-  
+
   void SdpInfo::addCrypto(const CryptoInfo& info) {
     cryptoVector_.push_back(info);
   }
@@ -330,14 +330,14 @@ namespace erizo {
             sdp << "a=rtpmap:"<< payloadType << " " << rtp.encodingName << "/"
               << rtp.clockRate << endl;
           }
-          for (std::map<std::string, std::string>::const_iterator theIt = rtp.formatParameters.begin(); 
+          for (std::map<std::string, std::string>::const_iterator theIt = rtp.formatParameters.begin();
               theIt != rtp.formatParameters.end(); theIt++){
             if (theIt->first.compare("none")){
               sdp << "a=fmtp:" << payloadType << " " << theIt->first << "=" << theIt->second << endl;
             }else{
               sdp << "a=fmtp:" << payloadType << " " << theIt->second << endl;
             }
-        
+
           }
         }
       }
@@ -409,7 +409,7 @@ namespace erizo {
               sdp << "a=rtcp-fb:" << payloadType << " " << rtp.feedbackTypes[itFb] << "\n";
             }
           }
-          for (std::map<std::string, std::string>::const_iterator theIt = rtp.formatParameters.begin(); 
+          for (std::map<std::string, std::string>::const_iterator theIt = rtp.formatParameters.begin();
               theIt != rtp.formatParameters.end(); theIt++){
             if (theIt->first.compare("none")){
               sdp << "a=fmtp:" << payloadType << " " << theIt->first << "=" << theIt->second << endl;
@@ -669,7 +669,7 @@ namespace erizo {
       }
 
       if (isFmtp != std::string::npos){
-        std::vector<std::string> parts = stringutil::splitOneOf(line, " :=", 4);        
+        std::vector<std::string> parts = stringutil::splitOneOf(line, " :=", 4);
         if (parts.size() >= 4){
           unsigned int PT = strtoul(parts[2].c_str(), NULL, 10);
           std::string option = "none";
