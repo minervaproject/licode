@@ -238,8 +238,10 @@ exports.RoomController = function (spec) {
             amqper.callRpc(getErizoQueue(publisher_id), "removePublisher", args, undefined);
 
             // Remove tracks
-            var index = erizos[publishers[publisher_id]].publishers.indexOf(publisher_id);
-            erizos[publishers[publisher_id]].publishers.splice(index, 1);
+            if (erizos[publishers[publisher_id]] !== undefined) {
+                var index = erizos[publishers[publisher_id]].publishers.indexOf(publisher_id);
+                erizos[publishers[publisher_id]].publishers.splice(index, 1);
+            }
 
             log.info('Removing subscribers', publisher_id);
             delete subscribers[publisher_id];
