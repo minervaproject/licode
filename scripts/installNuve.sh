@@ -58,7 +58,8 @@ populate_mongo(){
   rm $BUILD_DIR/licode_1.js
 
   # This could be more secure, but it works!  The seminar app needs this service ID/KEY, so put them in a place it can pull of https.
-  echo "{ 'SUPERSERVICE_ID': '$SERVID', 'SUPERSERVICE_KEY': '$SERVKEY' }" > $PATHNAME/../extras/basic_example/public/nuveServiceConfig.py
+  echo '{ "SUPERSERVICE_ID": "$SERVID", "SUPERSERVICE_KEY": "$SERVKEY" }' > $PATHNAME/../extras/basic_example/public/nuveServiceConfig.py
+  cat $PATHNAME/../extras/basic_example/public/nuveServiceConfig.py > $PATHNAME/../extras/basic_example/public/nuveServiceConfig.json
 
   # Write network-config file
   mkdir -p $ROOT/licode_config;
