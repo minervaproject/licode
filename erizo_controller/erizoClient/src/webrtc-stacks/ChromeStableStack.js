@@ -96,8 +96,10 @@ Erizo.ChromeStableStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=video.*\n/);
             }
-            var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
-            sdp = sdp.replace(a[0], r);
+            if (a) {
+                var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
+                sdp = sdp.replace(a[0], r);
+            }
         }
 
         if (spec.audio && that.maxAudioBW) {
@@ -105,8 +107,10 @@ Erizo.ChromeStableStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=audio.*\n/);
             }
-            var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
-            sdp = sdp.replace(a[0], r);
+            if (a) {
+                var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
+                sdp = sdp.replace(a[0], r);
+            }
         }
         return sdp;
     };
@@ -267,6 +271,10 @@ Erizo.ChromeStableStack = function (spec) {
     };
 
     that.updateBandwidth = function() {
+       if (!remoteDesc || !localDesc) {
+         console.warn("[erizo] Skipping publishAudio");
+         return;
+       }
        var sessionDescription = localDesc;
        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
        sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
@@ -286,6 +294,10 @@ Erizo.ChromeStableStack = function (spec) {
     };
 
     that.publishAudio = function(val) {
+       if (!remoteDesc || !localDesc) {
+         console.warn("[erizo] Skipping publishAudio");
+         return;
+       }
        localDesc.sdp = changeAudioConnectionType(localDesc.sdp, val);
        that.peerConnection.setLocalDescription(localDesc, function() {
            remoteDesc.sdp = changeAudioConnectionType(remoteDesc.sdp, val);
