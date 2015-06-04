@@ -305,9 +305,11 @@ namespace erizo {
       if (isFingerprint) {
         sdp << "a=fingerprint:sha-256 "<< fingerprint << endl;
       }
-      sdp << "a=sendrecv" << endl;
+      sdp << "a=recvonly" << endl;
       sdp << "a=mid:audio\n";
       sdp << "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level" << endl;
+      sdp << "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" << endl;
+
       if (isRtcpMux)
         sdp << "a=rtcp-mux\n";
       for (unsigned int it = 0; it < cryptoVector_.size(); it++) {
@@ -385,7 +387,7 @@ namespace erizo {
       if (isFingerprint) {
         sdp << "a=fingerprint:sha-256 "<< fingerprint << endl;
       }
-      sdp << "a=sendrecv" << endl;
+      sdp << "a=recvonly" << endl;
       sdp << "a=mid:video\n";
       if (isRtcpMux)
         sdp << "a=rtcp-mux\n";
