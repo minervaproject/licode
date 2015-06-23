@@ -285,7 +285,7 @@ Erizo.ChromeStableStack = function (spec) {
          }
          if (as) {
            for (var i=0; i<as.length; i++) {
-             remoteDesc.sdp = remoteDesc.sdp.replace(as[1], "");
+              remoteDesc.sdp = remoteDesc.sdp.replace(as[i], "");
            }
          }
          remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
