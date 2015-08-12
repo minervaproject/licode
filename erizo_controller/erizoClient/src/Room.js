@@ -465,7 +465,7 @@ Erizo.Room = function (spec) {
     };
 
     that.publishAudio = function(stream, val) {
-      stream.pc.publishAudio(val);
+      stream.pc && stream.pc.publishAudio(val);
     };
 
     // Returns callback(id, error)
