@@ -1,4 +1,5 @@
 /*global exports, require, console, Buffer, __dirname*/
+var newrelic = require('newrelic');
 var express = require('express');
 var bodyParser = require('body-parser');
 
