@@ -10,10 +10,10 @@
     }
   ],
   "levels": {
-    "ErizoController": "INFO",
-    "AMQPER": "INFO",
-    "ErizoJS": "INFO",
-    "ErizoJSController": "INFO",
-    "ErizoAgent": "INFO"
+    "ErizoController": "WARN",
+    "AMQPER": "WARN",
+    "ErizoJS": "WARN",
+    "ErizoJSController": "WARN",
+    "ErizoAgent": "WARN"
   }
 }
