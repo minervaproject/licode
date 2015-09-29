@@ -72,7 +72,7 @@ config.erizoController.roles =
 config.erizoController.report = {
     session_events: false, 		// Session level events -- default value: false
     connection_events: false, 	// Connection (ICE) level events -- default value: false
-    rtcp_stats: true				// RTCP stats -- default value: false
+    rtcp_stats: false				// RTCP stats -- default value: false
 };
 
 // If undefined, the path will be /tmp/
