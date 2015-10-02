@@ -16,6 +16,7 @@ Erizo.ChromeStableStack = function (spec) {
     that.audioCodec = spec.audioCodec;
     that.opusHz = spec.opusHz;
     that.opusBitrate = spec.opusBitrate;
+    that.shouldRemoveREMB = spec.shouldRemoveREMB;
 
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
@@ -240,7 +241,9 @@ Erizo.ChromeStableStack = function (spec) {
     var setLocalDesc = function (sessionDescription) {
         sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
-        sessionDescription.sdp = removeRemb(sessionDescription.sdp);
+        if (that.shouldRemoveREMB) {
+            sessionDescription.sdp = removeRemb(sessionDescription.sdp);
+        }
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
         spec.callback({
             type: sessionDescription.type,

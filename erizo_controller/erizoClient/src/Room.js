@@ -173,7 +173,7 @@ Erizo.Room = function (spec) {
 
             stream.pc = Erizo.Connection({callback: function (msg) {
                 sendSDPSocket('signaling_message', {streamId: stream.getID(), peerSocket: peerSocket, msg: msg});
-            }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW});
+            }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW, shouldRemoveREMB: spec.shouldRemoveREMB});
 
             stream.pc.onaddstream = function (evt) {
                 // Draw on html
@@ -425,7 +425,7 @@ Erizo.Room = function (spec) {
                         stream.pc = Erizo.Connection({callback: function (message) {
                             console.log("Sending message", message);
                             sendSDPSocket('signaling_message', {streamId: stream.getID(), msg: message}, undefined, function () {});
-                        }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, audio:stream.hasAudio(), video: stream.hasVideo(), audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate});
+                        }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, audio:stream.hasAudio(), video: stream.hasVideo(), audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate, shouldRemoveREMB: options.shouldRemoveREMB});
 
                         stream.pc.addStream(stream.stream);
                         stream.pc.createOffer();
