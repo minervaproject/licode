@@ -10,27 +10,17 @@ popd > /dev/null
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/erizo/build/erizo:$ROOT/erizo:$ROOT/build/libdeps/build/lib
 export ERIZO_HOME=$ROOT/erizo/
 
-# Make sure nuve service has started
-sleep 5
-
 cd $ROOT/erizo_controller/erizoAgent
 
 ulimit -n 4096
 ulimit -c unlimited
 
-# let supervisor manage process restarts
-# while node erizoAgent.js; do
-#   echo "node erizoAgent.js exited unexpectedly.  Respawning." >&2
-#   until node erizoAgent.js; do
-#       echo "node erizoAgent.js crashed with exit code $?.  Respawning." >&2
-#       sleep 1
-#   done
-# done
+# Make sure nuve service has started
+sleep 5
 
 sudo supervisorctl status nuve | grep RUNNING > /dev/null
 nuve_status=$?
 if [ $nuve_status -ne 0 ]; then
-  echo "status was $nuve_status"
   >&2 echo "Nuve not running, exiting"
   exit 1
 fi

@@ -10,25 +10,13 @@ popd > /dev/null
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/erizo/build/erizo:$ROOT/erizo:$ROOT/build/libdeps/build/lib
 export ERIZO_HOME=$ROOT/erizo/
 
-# Make sure nuve service has started
-sleep 5
-
 cd $ROOT/erizo_controller/erizoController
 
 ulimit -n 4096
 ulimit -c unlimited
 
-# if you run into c++ seg faults, use this instead of the while block in dev (type run at gdb prompt)
-# gdb --args node erizoController.js
-
-# let supervisor manage process restarts
-# while node erizoController.js; do
-#   echo "node erizoController.js exited unexpectedly.  Respawning." >&2
-#   until node erizoController.js; do
-#       echo "node erizoController.js crashed with exit code $?.  Respawning." >&2
-#       sleep 1
-#   done
-# done
+# Make sure nuve service has started
+sleep 5
 
 sudo supervisorctl status nuve | grep RUNNING > /dev/null
 nuve_status=$?
