@@ -26,7 +26,11 @@ Erizo.ChromeStableStack = function (spec) {
     }
 
     if ((spec.turnServer || {}).url) {
-        that.pc_config.iceServers.push({"username": spec.turnServer.username, "credential": spec.turnServer.password, "url": spec.turnServer.url});
+        that.pc_config.iceServers.push({
+            "username": spec.turnServer.username,
+            "credential": spec.turnServer.password,
+            "url": spec.turnServer.url
+        });
     }
 
     if (spec.audio === undefined) {
@@ -38,51 +42,21 @@ Erizo.ChromeStableStack = function (spec) {
     }
 
     that.mediaConstraints = {
-        mandatory : {
+        mandatory: {
             'OfferToReceiveVideo': spec.video,
             'OfferToReceiveAudio': spec.audio
         }
     };
 
-    var errorCallback = function(message){
-      console.log("Error in Stack ", message);
+    var errorCallback = function (message) {
+        console.log("Error in Stack ", message);
     }
 
     that.peerConnection = new WebkitRTCPeerConnection(that.pc_config, that.con);
 
-    that.peerConnection.onicecandidate = function (event) {
-        L.Logger.debug("Have ice candidate for session: ", spec.session_id);
-        // HACK (bf) If no new ice candidates for 0.5s, stop waiting
-        clearTimeout(that.moreIceTimeout);
-        that.moreIceTimeout = setTimeout(function() {
-            if (that.moreIceComing) {
-                that.moreIceComing = false;
-                that.markActionNeeded();
-            }
-        }, 500);
-
-        if (!event.candidate) {
-            // At the moment, we do not renegotiate when new candidates
-            // show up after the more flag has been false once.
-            L.Logger.debug("State: " + that.peerConnection.iceGatheringState);
-
-            if (that.ices === undefined) {
-                that.ices = 0;
-            }
-            that.ices = that.ices + 1;
-            if (that.ices >= 1 && that.moreIceComing) {
-                that.moreIceComing = false;
-                that.markActionNeeded();
-                clearTimeout(that.moreIceTimeout);
-            }
-        } else {
-            that.iceCandidateCount += 1;
-        }
-    };
-
     var setMaxBW = function (sdp) {
         var as = sdp.match(/b=AS:.*\r\n/g);
-        if (as == null) {
+        if (as === null) {
           as = sdp.match(/b=AS:.*\n/g);
         }
 
@@ -93,9 +67,10 @@ Erizo.ChromeStableStack = function (spec) {
         }
 
         if (spec.video && that.maxVideoBW) {
+
             var a = sdp.match(/m=video.*\r\n/);
-            if (a == null){
-              a = sdp.match(/m=video.*\n/);
+            if (a === null) {
+                a = sdp.match(/m=video.*\n/);
             }
             if (a) {
                 var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
@@ -105,8 +80,8 @@ Erizo.ChromeStableStack = function (spec) {
 
         if (spec.audio && that.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            if (a == null){
-              a = sdp.match(/m=audio.*\n/);
+            if (a === null) {
+                a = sdp.match(/m=audio.*\n/);
             }
             if (a) {
                 var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
@@ -199,12 +174,13 @@ Erizo.ChromeStableStack = function (spec) {
 
     spec.localCandidates = [];
 
-    that.peerConnection.onicecandidate =  function (event) {
+    that.peerConnection.onicecandidate = function (event) {
         if (event.candidate) {
 
             if (!event.candidate.candidate.match(/a=/)) {
-                event.candidate.candidate ="a="+event.candidate.candidate;
-            };
+                event.candidate.candidate = "a=" + event.candidate.candidate;
+            }
+            ;
 
             var candidateObject = {
                 sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -213,10 +189,10 @@ Erizo.ChromeStableStack = function (spec) {
             };
 
             if (spec.remoteDescriptionSet) {
-                spec.callback({type:'candidate', candidate: candidateObject});
+                spec.callback({type: 'candidate', candidate: candidateObject});
             } else {
                 spec.localCandidates.push(candidateObject);
-                console.log("Local Candidates stored: ", spec.localCandidates.length, spec.localCandidates);
+                L.Logger.info("Storing candidate: ", spec.localCandidates.length, candidateObject);
             }
 
         } else {
@@ -265,12 +241,47 @@ Erizo.ChromeStableStack = function (spec) {
         that.peerConnection.setLocalDescription(sessionDescription);
     }
 
+    that.updateSpec = function (config, callback){
+        if (config.maxVideoBW || config.maxAudioBW ){
+            if (config.maxVideoBW){
+                L.Logger.debug ("Maxvideo Requested", config.maxVideoBW, "limit", spec.limitMaxVideoBW);
+                if (config.maxVideoBW > spec.limitMaxVideoBW) {
+                    config.maxVideoBW = spec.limitMaxVideoBW;
+                }
+                spec.maxVideoBW = config.maxVideoBW;
+                L.Logger.debug ("Result", spec.maxVideoBW);
+            }
+            if (config.maxAudioBW) {
+                if (config.maxAudioBW > spec.limitMaxAudioBW) {
+                    config.maxAudioBW = spec.limitMaxAudioBW;
+                }
+                spec.maxAudioBW = config.maxAudioBW;
+            }
+
+            localDesc.sdp = setMaxBW(localDesc.sdp);
+            that.peerConnection.setLocalDescription(localDesc, function () {
+                remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+                that.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc), function () {
+                    spec.remoteDescriptionSet = true;
+                    spec.callback({type:'updatestream', sdp: localDesc.sdp});
+                });
+            }, function (error){
+                L.Logger.error("Error updating configuration", error);
+                callback('error');
+            });
+        }
+        if (config.minVideoBW){
+            L.Logger.debug ("MinVideo Changed to ", config.minVideoBW);
+            spec.callback({type:'updatestream', minVideoBW: config.minVideoBW});
+        }
+    };
+
     that.createOffer = function (isSubscribe) {
-      if (isSubscribe===true){
-          that.peerConnection.createOffer(setLocalDesc, errorCallback, that.mediaConstraints);
-      }else{
-          that.peerConnection.createOffer(setLocalDesc, errorCallback);
-      }
+        if (isSubscribe === true) {
+            that.peerConnection.createOffer(setLocalDesc, errorCallback, that.mediaConstraints);
+        } else {
+            that.peerConnection.createOffer(setLocalDesc, errorCallback);
+        }
     };
 
     that.updateBandwidth = function() {
@@ -316,14 +327,19 @@ Erizo.ChromeStableStack = function (spec) {
     spec.remoteDescriptionSet = false;
 
     that.processSignalingMessage = function (msg) {
-        console.log("Process Signaling Message", msg);
+        //L.Logger.info("Process Signaling Message", msg);
 
         if (msg.type === 'offer') {
             msg.sdp = setMaxBW(msg.sdp);
             msg.sdp = setAudioCodec(sessionDescription.sdp);
-            that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg));
-            that.peerConnection.createAnswer(setLocalDescp2p, null, that.mediaConstraints);
-            spec.remoteDescriptionSet = true;
+            that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function () {
+                that.peerConnection.createAnswer(setLocalDescp2p, function (error) {
+                    L.Logger.error("Error: ", error);
+                }, that.mediaConstraints);
+                spec.remoteDescriptionSet = true;
+            }, function (error) {
+                L.Logger.error("Error setting Remote Description", error)
+            });
 
         } else if (msg.type === 'answer') {
 
@@ -339,22 +355,22 @@ Erizo.ChromeStableStack = function (spec) {
             msg.sdp = setMaxBW(msg.sdp);
             msg.sdp = setAudioCodec(msg.sdp);
 
-            that.peerConnection.setLocalDescription(localDesc, function(){
-              remoteDesc = new RTCSessionDescription(msg);
-              that.peerConnection.setRemoteDescription(remoteDesc, function() {
-                spec.remoteDescriptionSet = true;
-                console.log("Candidates to be added: ", spec.remoteCandidates.length, spec.remoteCandidates);
-                while (spec.remoteCandidates.length > 0) {
-                // IMPORTANT: preserve ordering of candidates
-                  that.peerConnection.addIceCandidate(spec.remoteCandidates.shift());
-                }
-                console.log("Local candidates to send:" , spec.localCandidates.length);
-                while(spec.localCandidates.length > 0) {
-                // IMPORTANT: preserve ordering of candidates
-                  spec.callback({type:'candidate', candidate: spec.localCandidates.shift()});
-                }
+            remoteDesc = msg;
+            that.peerConnection.setLocalDescription(localDesc, function () {
+                that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function () {
+                    spec.remoteDescriptionSet = true;
+                    console.log("Candidates to be added: ", spec.remoteCandidates.length, spec.remoteCandidates);
+                    while (spec.remoteCandidates.length > 0) {
+                        // IMPORTANT: preserve ordering of candidates
+                        that.peerConnection.addIceCandidate(spec.remoteCandidates.shift());
+                    }
+                    console.log("Local candidates to send:", spec.localCandidates.length);
+                    while (spec.localCandidates.length > 0) {
+                        // IMPORTANT: preserve ordering of candidates
+                        spec.callback({type: 'candidate', candidate: spec.localCandidates.shift()});
+                    }
 
-              });
+                });
             });
 
         } else if (msg.type === 'candidate') {
@@ -374,7 +390,7 @@ Erizo.ChromeStableStack = function (spec) {
                     spec.remoteCandidates.push(candidate);
 //                    console.log("Candidates stored: ", spec.remoteCandidates.length, spec.remoteCandidates);
                 }
-            } catch(e) {
+            } catch (e) {
                 L.Logger.error("Error parsing candidate", msg.candidate);
             }
         }

@@ -39,6 +39,24 @@ struct CandidatePair{
   std::string clientCandidateIp;
   int clientCandidatePort;
 };
+
+class IceConfig {
+  public:
+    std::string turnServer, turnUsername, turnPass;
+    std::string stunServer;
+    uint16_t stunPort, turnPort, minPort, maxPort;
+    IceConfig(){
+      turnServer = "";
+      turnUsername = "";
+      turnPass = "";
+      stunServer = "";
+      stunPort = 0;
+      turnPort = 0;
+      minPort = 0;
+      maxPort = 0;
+    };
+};
+
 /**
  * States of ICE
  */
@@ -81,8 +99,8 @@ public:
 	 * @param transportName The name of the transport protocol. Was used when WebRTC used video_rtp instead of just rtp.
    * @param iceComponents Number of ice components pero connection. Default is 1 (rtcp-mux).
 	 */
-	NiceConnection(MediaType med, const std::string &transportName, NiceConnectionListener* listener, unsigned int iceComponents=1,
-		const std::string& stunServer = "", int stunPort = 3478, int minPort = 0, int maxPort = 65535, std::string username = "", std::string password = "");
+	NiceConnection(MediaType med, const std::string &transportName, NiceConnectionListener* listener, unsigned int iceComponents,
+		const IceConfig& iceConfig, std::string username = "", std::string password = "");
 
 	virtual ~NiceConnection();
 	/**
@@ -111,6 +129,13 @@ public:
 	 * @param username and password where credentials will be stored
 	 */
 	void getLocalCredentials(std::string& username, std::string& password);
+  
+	/**
+	 * Set remote credentials
+	 * @param username and password
+	 */
+  void setRemoteCredentials (const std::string& username, const std::string& password);
+
 	/**
 	 * Sets the associated Listener.
 	 * @param connection Pointer to the NiceConnectionListener.
@@ -128,6 +153,7 @@ public:
 	 * @return Bytes sent.
 	 */
 	int sendData(unsigned int compId, const void* buf, int len);
+
 
 
 

@@ -24,6 +24,12 @@ enum HostType {
 enum MediaType {
     VIDEO_TYPE, AUDIO_TYPE, OTHER
 };
+/** 
+ * Stream directions
+ */
+enum StreamDirection {
+  SENDRECV, SENDONLY, RECVONLY
+};
 /**
  * RTP Profile
  */
@@ -79,6 +85,18 @@ public:
     std::string password;
     MediaType mediaType;
 };
+
+/**
+ * A bundle tag
+ */
+class BundleTag {
+  public:
+    BundleTag(std::string theId, MediaType theType):id(theId),mediaType(theType){
+    };
+    std::string id;
+    MediaType mediaType;
+};
+
 /**
  * A PT to Codec map
  */
@@ -174,6 +192,7 @@ public:
 
     bool supportPayloadType(const int payloadType);
 
+    void createOfferSdp();
     /**
      * @brief copies relevant information from the offer sdp for which this will be an answer sdp
      * @param offerSdp The offer SDP as received via signaling and parsed
@@ -200,6 +219,8 @@ public:
     * Is there rtcp muxing
     */
     bool isRtcpMux;
+    
+    StreamDirection videoDirection, audioDirection;
     /**
     * RTP Profile type
     */
@@ -224,12 +245,14 @@ public:
      * The negotiated payload list
      */
     std::vector<RtpMap> payloadVector;
+    std::vector<BundleTag> bundleTags;
     /*
      * MLines for video and audio
      */
     int videoSdpMLine;
     int audioSdpMLine;
     int videoCodecs, audioCodecs;
+    unsigned int videoBandwidth;
 
 private:
     bool processSdp(const std::string& sdp, const std::string& media);

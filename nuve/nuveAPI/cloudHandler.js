@@ -8,7 +8,8 @@ var log = logger.getLogger("CloudHandler");
 
 var ec2;
 
-var INTERVAL_TIME_EC_READY = 100;
+var INTERVAL_TIME_EC_READY = 500;
+var TOTAL_ATTEMPTS_EC_READY = 20;
 var INTERVAL_TIME_CHECK_KA = 1000;
 var MAX_KA_COUNT = 10;
 
@@ -58,30 +59,36 @@ var recalculatePriority = function () {
 
 },
 
-    checkKA = function () {
-        "use strict";
-        var ec, room;
+checkKA = function () {
+    "use strict";
+    var ec, room;
 
-        for (ec in erizoControllers) {
-            if (erizoControllers.hasOwnProperty(ec)) {
-                erizoControllers[ec].keepAlive += 1;
-                if (erizoControllers[ec].keepAlive > MAX_KA_COUNT) {
-                    log.info('ErizoController', ec, ' in ', erizoControllers[ec].ip, 'does not respond. Deleting it.');
-                    delete erizoControllers[ec];
-                    for (room in rooms) {
-                        if (rooms.hasOwnProperty(room)) {
-                            if (rooms[room] === ec) {
-                                delete rooms[room];
-                            }
+    for (ec in erizoControllers) {
+        if (erizoControllers.hasOwnProperty(ec)) {
+            erizoControllers[ec].keepAlive += 1;
+            if (erizoControllers[ec].keepAlive > MAX_KA_COUNT) {
+                log.info('ErizoController', ec, ' in ', erizoControllers[ec].ip, 'does not respond. Deleting it.');
+                delete erizoControllers[ec];
+                for (room in rooms) {
+                    if (rooms.hasOwnProperty(room)) {
+                        if (rooms[room] === ec) {
+                            delete rooms[room];
                         }
                     }
-                    recalculatePriority();
                 }
+                recalculatePriority();
             }
         }
-    },
+    }
+},
 
-    checkKAInterval = setInterval(checkKA, INTERVAL_TIME_CHECK_KA);
+checkKAInterval = setInterval(checkKA, INTERVAL_TIME_CHECK_KA);
+
+var getErizoController = undefined;
+
+if (config.nuve.cloudHandlerPolicy) {
+    getErizoController = require('./ch_policies/' + config.nuve.cloudHandlerPolicy).getErizoController;
+}
 
 exports.addNewErizoController = function (msg, callback) {
     "use strict";
@@ -176,8 +183,11 @@ exports.killMe = function (ip) {
 
 };
 
-exports.getErizoControllerForRoom = function (roomId, callback) {
+exports.getErizoControllerForRoom = function (room, callback) {
     "use strict";
+
+
+    var roomId = room._id;
 
     if (rooms[roomId] !== undefined) {
         callback(erizoControllers[rooms[roomId]]);
@@ -185,20 +195,31 @@ exports.getErizoControllerForRoom = function (roomId, callback) {
     }
 
     var id,
+        attempts = 0,
         intervarId = setInterval(function () {
 
+        if (getErizoController) {
+            id = getErizoController(room, erizoControllers, ecQueue);
+        } else {
             id = ecQueue[0];
+        }
 
-            if (id !== undefined) {
+        if (id !== undefined) {
 
-                rooms[roomId] = id;
-                callback(erizoControllers[id]);
+            rooms[roomId] = id;
+            callback(erizoControllers[id]);
 
-                recalculatePriority();
-                clearInterval(intervarId);
-            }
+            recalculatePriority();
+            clearInterval(intervarId);
+        }
 
-        }, INTERVAL_TIME_EC_READY);
+        if (attempts > TOTAL_ATTEMPTS_EC_READY) {
+            clearInterval(intervarId);
+            callback('timeout');
+        }
+        attempts++; 
+
+    }, INTERVAL_TIME_EC_READY);
 
 };
 

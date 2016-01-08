@@ -8,16 +8,25 @@ GLOBAL.config.erizo.stunserver = GLOBAL.config.erizo.stunserver || '';
 GLOBAL.config.erizo.stunport = GLOBAL.config.erizo.stunport || 0;
 GLOBAL.config.erizo.minport = GLOBAL.config.erizo.minport || 0;
 GLOBAL.config.erizo.maxport = GLOBAL.config.erizo.maxport || 0;
+GLOBAL.config.erizo.turnserver = GLOBAL.config.erizo.turnserver || '';
+GLOBAL.config.erizo.turnport = GLOBAL.config.erizo.turnport || 0;
+GLOBAL.config.erizo.turnusername = GLOBAL.config.erizo.turnusername || '';
+GLOBAL.config.erizo.turnpass = GLOBAL.config.erizo.turnpass || '';
 
 // Parse command line arguments
 var getopt = new Getopt([
   ['r' , 'rabbit-host=ARG'            , 'RabbitMQ Host'],
   ['g' , 'rabbit-port=ARG'            , 'RabbitMQ Port'],
+  ['b' , 'rabbit-heartbeat=ARG'       , 'RabbitMQ AMQP Heartbeat Timeout'],
   ['l' , 'logging-config-file=ARG'    , 'Logging Config File'],
-  ['s' , 'stunserver=ARG'             , 'Stun Server hostname'],
+  ['s' , 'stunserver=ARG'             , 'Stun Server IP'],
   ['p' , 'stunport=ARG'               , 'Stun Server port'],
   ['m' , 'minport=ARG'                , 'Minimum port'],
   ['M' , 'maxport=ARG'                , 'Maximum port'],
+  ['t' , 'turnserver=ARG'             , 'TURN server IP'],
+  ['T' , 'turnport=ARG'               , 'TURN server PORT'],
+  ['c' , 'turnusername=ARG'           , 'TURN username'],
+  ['C' , 'turnpass=ARG'               , 'TURN password'],
   ['h' , 'help'                       , 'display this help']
 ]);
 
@@ -38,6 +47,10 @@ for (var prop in opt.options) {
             case "rabbit-port":
                 GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
                 GLOBAL.config.rabbit.port = value;
+                break;
+            case "rabbit-heartbeat":
+                GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
+                GLOBAL.config.rabbit.heartbeat = value;
                 break;
             case "logging-config-file":
                 GLOBAL.config.logger = GLOBAL.config.logger || {};
@@ -61,7 +74,6 @@ var log = logger.getLogger("ErizoJS");
 var ejsController = controller.ErizoJSController();
 
 ejsController.keepAlive = function(callback) {
-    log.debug("KeepAlive from ErizoController");
     callback('callback', true);
 };
 

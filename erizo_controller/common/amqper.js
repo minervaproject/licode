@@ -29,6 +29,10 @@ if (GLOBAL.config.rabbit.url !== undefined) {
     addr.port = GLOBAL.config.rabbit.port;
 }
 
+if(GLOBAL.config.rabbit.heartbeat !==undefined){
+    addr.heartbeat = GLOBAL.config.rabbit.heartbeat;
+}
+
 exports.setPublicRPC = function(methods) {
     rpcPublic = methods;
 };
@@ -75,13 +79,14 @@ exports.connect = function(callback) {
         });
 
         //Create a fanout exchange
-        broadcast_exc = connection.exchange('broadcastExchange', {type: 'topic'}, function (exchange) {
+        broadcast_exc = connection.exchange('broadcastExchange', {type: 'topic', autoDelete: false}, function (exchange) {
             log.info('Exchange ' + exchange.name + ' is open');
         });
     });
 
     connection.on('error', function(e) {
-       log.error('Connection error...', e);
+       log.error('Connection error...', e, " killing process.");
+       process.exit(1);
     });
 }
 
@@ -122,7 +127,20 @@ exports.bind_broadcast = function(id, callback) {
             log.info('Queue ' + queueCreated.name + ' is open');
 
             q.bind('broadcastExchange', id);
-            q.subscribe(function (m){callback(m)});
+            q.subscribe(function (body){
+                var answer;
+                if (body.replyTo) {
+                    answer = function (result) {
+                        rpc_exc.publish(body.replyTo, {data: result, corrID: body.corrID, type: 'callback'});
+                    };
+                }
+                if (body.message.method && rpcPublic[body.message.method]) {
+                    body.message.args.push(answer);
+                    rpcPublic[body.message.method].apply(rpcPublic, body.message.args);
+                } else {
+                    callback(body.message, answer);
+                }
+            });
             
         } catch (err) {
             log.error("Error in exchange ", exchange.name, " - error - ", err);
@@ -133,9 +151,21 @@ exports.bind_broadcast = function(id, callback) {
 
 /*
  * Publish broadcast messages to 'topic'
+ * If message has the format {method: String, args: Array}. it will execute the RPC
  */
-exports.broadcast = function(topic, message) {
-    broadcast_exc.publish(topic, message);
+exports.broadcast = function(topic, message, callback) {
+    var body = {message: message};
+    
+    if (callback) {
+        corrID ++;
+        map[corrID] = {};
+        map[corrID].fn = {callback: callback};
+        map[corrID].to = setTimeout(callbackError, TIMEOUT, corrID);
+
+        body.corrID = corrID;
+        body.replyTo = clientQueue.name;
+    }
+    broadcast_exc.publish(topic, body);
 }
 
 /*

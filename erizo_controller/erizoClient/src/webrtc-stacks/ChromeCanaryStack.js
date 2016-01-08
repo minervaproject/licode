@@ -66,16 +66,16 @@ Erizo.ChromeCanaryStack = function (spec) {
     var setMaxBW = function (sdp) {
         if (spec.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
-            if (a) {
+            if (a && (a.length > 0)) {
+                var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
                 sdp = sdp.replace(a[0], r);
             }
         }
 
         if (spec.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
-            if (a) {
+            if (a && (a.length > 0)) {
+                var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
                 sdp = sdp.replace(a[0], r);
             }
         }
@@ -372,7 +372,7 @@ Erizo.ChromeCanaryStack = function (spec) {
     that.peerConnection.oniceconnectionstatechange = function (e) {
         if (that.oniceconnectionstatechange) {
             that.oniceconnectionstatechange(e.currentTarget.iceConnectionState);
-        }   
+        }
     };
 
     // Variables that are part of the public interface of PeerConnection
