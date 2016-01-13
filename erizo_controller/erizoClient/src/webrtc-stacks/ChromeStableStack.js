@@ -355,9 +355,9 @@ Erizo.ChromeStableStack = function (spec) {
             msg.sdp = setMaxBW(msg.sdp);
             msg.sdp = setAudioCodec(msg.sdp);
 
-            remoteDesc = msg;
+            remoteDesc = new RTCSessionDescription(msg);
             that.peerConnection.setLocalDescription(localDesc, function () {
-                that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function () {
+                that.peerConnection.setRemoteDescription(remoteDesc, function () {
                     spec.remoteDescriptionSet = true;
                     console.log("Candidates to be added: ", spec.remoteCandidates.length, spec.remoteCandidates);
                     while (spec.remoteCandidates.length > 0) {
