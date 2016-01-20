@@ -25,8 +25,7 @@ var databaseUrl = config.nuve.dataBaseURL;
  *
  */
 var collections = ["rooms", "tokens", "services"];
-var mongojs = require('mongojs');
-exports.db = mongojs(databaseUrl, collections);
+exports.db = require("mongojs").connect(databaseUrl, collections);
 
 // Superservice ID
 exports.superService = config.nuve.superserviceID;

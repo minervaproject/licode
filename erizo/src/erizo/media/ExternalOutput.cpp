@@ -40,7 +40,6 @@ ExternalOutput::ExternalOutput(const std::string& outputUrl) : fec_receiver_(thi
     sinkfbSource_ = this;
     fbSink_ = NULL;
     unpackagedSize_ = 0;
-    videoSourceSsrc_ = 0;
 }
 
 bool ExternalOutput::init(){
@@ -291,10 +290,6 @@ int ExternalOutput::deliverAudioData_(char* buf, int len) {
 }
 
 int ExternalOutput::deliverVideoData_(char* buf, int len) {
-    if (videoSourceSsrc_ == 0){    
-      RtpHeader* h = reinterpret_cast<RtpHeader*>(buf);
-      videoSourceSsrc_ = h->getSSRC();
-    }
     this->queueData(buf,len,VIDEO_PACKET);
     return 0;
 }
@@ -376,7 +371,8 @@ void ExternalOutput::queueData(char* buffer, int length, packetType type){
           context_->oformat->audio_codec = AV_CODEC_ID_PCM_MULAW;
         }
     }
-    if (needToSendFir_ && videoSourceSsrc_) {
+
+    if (needToSendFir_) {
         this->sendFirPacket();
         needToSendFir_ = false;
     }
@@ -433,17 +429,17 @@ void ExternalOutput::queueData(char* buffer, int length, packetType type){
 
 int ExternalOutput::sendFirPacket() {
     if (fbSink_ != NULL) {
-      RtcpHeader thePLI;
-      thePLI.setPacketType(RTCP_PS_Feedback_PT);
-      thePLI.setBlockCount(1);
-      thePLI.setSSRC(55543);
-      thePLI.setSourceSSRC(videoSourceSsrc_);
-      thePLI.setLength(2);
-      char *buf = reinterpret_cast<char*>(&thePLI);
-      int len = (thePLI.getLength()+1)*4;
-      fbSink_->deliverFeedback((char*)buf, len);
-      return len; 
+        int pos = 0;
+        uint8_t rtcpPacket[50];
+        // add full intra request indicator
+        uint8_t FMT = 4;
+        rtcpPacket[pos++] = (uint8_t) 0x80 + FMT;
+        rtcpPacket[pos++] = (uint8_t) 206;
+        pos = 12;
+        fbSink_->deliverFeedback((char*)rtcpPacket, pos);
+        return pos;
     }
+
     return -1;
 }
 

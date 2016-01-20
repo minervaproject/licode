@@ -266,15 +266,17 @@ namespace erizo{
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         struct genericNack_t{
           uint32_t ssrcsource;
-          uint32_t pid:16;
-          uint32_t blp:16;
+          uint16_t pid;
+          uint16_t blp;
         } nackPacket;
         
         struct remb_t{
           uint32_t ssrcsource;
           uint32_t uniqueid;
           uint32_t numssrc:8;
+
           uint32_t brLength :24;
+         
           uint32_t ssrcfeedb;
 
         } rembPacket;
@@ -320,8 +322,8 @@ namespace erizo{
       inline uint32_t getSSRC(){
         return ntohl(ssrc);
       }
-      inline void setSSRC(uint32_t aSsrc){
-        ssrc = htonl(aSsrc);
+      inline void setSSRC(uint32_t ssrc){
+        ssrc = htonl(ssrc);
       }
       inline uint32_t getSourceSSRC(){
         return ntohl(report.receiverReport.ssrcsource);
@@ -338,57 +340,23 @@ namespace erizo{
       inline uint32_t getLostPackets() {
         return ntohl(report.receiverReport.lost)>>8;
       }
-      inline void setLostPackets(uint32_t lost) {
-        report.receiverReport.lost = htonl(lost)>>8;
-      }
       inline uint32_t getHighestSeqnum() {
         return ntohl(report.receiverReport.highestseqnum);
-      }
-      inline void setHighestSeqnum(uint32_t highest) {
-        report.receiverReport.highestseqnum = htonl(highest);
       }
       inline uint32_t getJitter() {
         return ntohl(report.receiverReport.jitter);
       }
-      inline void setJitter(uint32_t jitter) {
-        report.receiverReport.jitter = htonl(jitter);
-      }
-      inline uint32_t getLastSr(){
-        return ntohl(report.receiverReport.lastsr);
-      }
-      inline void setLastSr(uint32_t lastsr) {
-        report.receiverReport.lastsr = htonl(lastsr);
-      }
-      inline uint32_t getDelaySinceLastSr(){
-        return ntohl (report.receiverReport.delaysincelast);
-      }
-      inline void setDelaySinceLastSr(uint32_t delaylastsr) {
-        report.receiverReport.delaysincelast = htonl(delaylastsr);
-      }
-
       inline uint32_t getPacketsSent(){
         return ntohl(report.senderReport.packetsent);
       }
-      inline void setPacketsSent(uint32_t packetssent){
-        report.senderReport.packetsent = htonl(packetssent);
-      }
       inline uint32_t getOctetsSent(){
         return ntohl(report.senderReport.octetssent);
-      }      
-      inline uint64_t getNtpTimestamp(){
-       return (((uint64_t)htonl(report.senderReport.ntptimestamp)) << 32) + htonl(report.senderReport.ntptimestamp >> 32);
       }
-      inline uint16_t getNackPid(){
+      uint16_t getNackPid(){
         return ntohs(report.nackPacket.pid);
       }
-      inline void setNackPid(uint16_t pid){
-        report.nackPacket.pid = htons(pid);
-      }
-      inline uint16_t getNackBlp(){
+      uint16_t getNackBlp(){
         return ntohs(report.nackPacket.blp);
-      }
-      inline void setNackBlp(uint16_t blp){
-        report.nackPacket.blp = htons(blp);
       }
       inline void setREMBBitRate(uint64_t bitRate){
         uint64_t max = 0x3FFFF; // 18 bits
@@ -411,17 +379,8 @@ namespace erizo{
       inline uint32_t getBrMantis(){        
         return (ntohl(report.rembPacket.brLength)>>8 & 0x3ffff);
       }
-      inline uint8_t getREMBNumSSRC(){
+      inline uint8_t getNumSSRC(){
         return report.rembPacket.numssrc;
-      }
-      inline void setREMBNumSSRC(uint8_t num){
-        report.rembPacket.numssrc = num;
-      }
-      inline uint32_t getREMBFeedSSRC(){
-        return ntohl(report.rembPacket.ssrcfeedb);
-      }
-      inline void setREMBFeedSSRC(uint32_t ssrc){
-         report.rembPacket.ssrcfeedb = htonl(ssrc);
       }
       inline uint32_t getFCI(){
         return ntohl(report.pli.fci);

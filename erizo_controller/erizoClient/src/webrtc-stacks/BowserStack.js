@@ -45,10 +45,8 @@ Erizo.BowserStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=video.*\n/);
             }
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         if (spec.maxAudioBW) {
@@ -56,10 +54,8 @@ Erizo.BowserStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=audio.*\n/);
             }
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         return sdp;

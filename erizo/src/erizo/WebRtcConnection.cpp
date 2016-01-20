@@ -11,11 +11,10 @@
 
 namespace erizo {
   DEFINE_LOGGER(WebRtcConnection, "WebRtcConnection");
-  
-  WebRtcConnection::WebRtcConnection(bool audioEnabled, bool videoEnabled, 
-      const IceConfig& iceConfig, bool trickleEnabled, WebRtcConnectionEventListener* listener)
-      : connEventListener_(listener), iceConfig_(iceConfig), fec_receiver_(this){
-    ELOG_WARN("WebRtcConnection constructor stunserver %s stunPort %d minPort %d maxPort %d\n", iceConfig.stunServer.c_str(), iceConfig.stunPort, iceConfig.minPort, iceConfig.maxPort);
+
+  WebRtcConnection::WebRtcConnection(bool audioEnabled, bool videoEnabled, const std::string &stunServer, int stunPort, int minPort, int maxPort, bool trickleEnabled,WebRtcConnectionEventListener* listener)
+      : connEventListener_(listener), fec_receiver_(this){
+    ELOG_WARN("WebRtcConnection constructor stunserver %s stunPort %d minPort %d maxPort %d\n", stunServer.c_str(), stunPort, minPort, maxPort);
     sequenceNumberFIR_ = 0;
     bundle_ = false;
     this->setVideoSinkSSRC(55543);
@@ -29,18 +28,16 @@ namespace erizo {
     videoTransport_ = NULL;
     audioTransport_ = NULL;
 
-    shouldSendFeedback_ = true;
-
     audioEnabled_ = audioEnabled;
     videoEnabled_ = videoEnabled;
     trickleEnabled_ = trickleEnabled;
 
-    gettimeofday(&mark_, NULL);
-
-    rateControl_ = 0;
-     
+    stunServer_ = stunServer;
+    stunPort_ = stunPort;
+    minPort_ = minPort;
+    maxPort_ = maxPort;
+    
     sending_ = true;
-    rtcpProcessor_ = boost::shared_ptr<RtcpProcessor> (new RtcpProcessor((MediaSink*)this, (MediaSource*) this));
     send_Thread_ = boost::thread(&WebRtcConnection::sendLoop, this);
   }
 
@@ -65,39 +62,12 @@ namespace erizo {
   }
 
   bool WebRtcConnection::init() {
-    if (connEventListener_ != NULL) {
-      connEventListener_->notifyEvent(globalState_, "");
-    }
     return true;
   }
-
-  bool WebRtcConnection::createOffer (){
-
-    bundle_ = true;
-    this->localSdp_.createOfferSdp();
-
-    ELOG_DEBUG("Creating sdp offer");
-    ELOG_DEBUG("Setting SSRC to localSdp %u", this->getVideoSinkSSRC());
-
-    localSdp_.videoSsrc = this->getVideoSinkSSRC();
-    localSdp_.audioSsrc = this->getAudioSinkSSRC();
-
-
-    if (!videoTransport_ ){ // For now we don't re/check transports, if they are already created we leave them there
-      videoTransport_ = new DtlsTransport(VIDEO_TYPE, "video", bundle_, true, this, iceConfig_ , "", "", true);
-    }
-
-    if (connEventListener_ != NULL) {
-      std::string msg = this->getLocalSdp();
-      connEventListener_->notifyEvent(globalState_, msg);
-    }
-    return true;
-  }
-
+  
   bool WebRtcConnection::setRemoteSdp(const std::string &sdp) {
     ELOG_DEBUG("Set Remote SDP %s", sdp.c_str());
     remoteSdp_.initWithSdp(sdp, "");
-
 
     bundle_ = remoteSdp_.isBundle;
     ELOG_DEBUG("Is bundle? %d", bundle_);
@@ -114,37 +84,21 @@ namespace erizo {
     this->thisStats_.setVideoSourceSSRC(this->getVideoSourceSSRC());
     this->setAudioSourceSSRC(remoteSdp_.audioSsrc);
     this->thisStats_.setAudioSourceSSRC(this->getAudioSourceSSRC());
-    rtcpProcessor_->addSourceSsrc(this->getAudioSourceSSRC());
-    rtcpProcessor_->addSourceSsrc(this->getVideoSourceSSRC());
 
     if (remoteSdp_.profile == SAVPF) {
       if (remoteSdp_.isFingerprint) {
         if (remoteSdp_.hasVideo||bundle_) {
           std::string username, password;
           remoteSdp_.getCredentials(username, password, VIDEO_TYPE);
-          if (!videoTransport_){
-            ELOG_DEBUG("Creating videoTransport with creds %s, %s", username.c_str(), password.c_str());
-            videoTransport_ = new DtlsTransport(VIDEO_TYPE, "video", bundle_, remoteSdp_.isRtcpMux, this, iceConfig_ , username, password, false);
-          }else{ 
-            ELOG_DEBUG("UPDATING videoTransport with creds %s, %s", username.c_str(), password.c_str());
-            videoTransport_->getNiceConnection()->setRemoteCredentials(username, password);
-          }
+          videoTransport_ = new DtlsTransport(VIDEO_TYPE, "video", bundle_, remoteSdp_.isRtcpMux, this, stunServer_, stunPort_, minPort_, maxPort_, username, password);
         }
         if (!bundle_ && remoteSdp_.hasAudio) {
           std::string username, password;
           remoteSdp_.getCredentials(username, password, AUDIO_TYPE);
-          if (!audioTransport_){
-            ELOG_DEBUG("Creating audioTransport with creds %s, %s", username.c_str(), password.c_str());
-            audioTransport_ = new DtlsTransport(AUDIO_TYPE, "audio", bundle_, remoteSdp_.isRtcpMux, this, iceConfig_, username, password, false);
-          }else{
-            ELOG_DEBUG("UPDATING audioTransport with creds %s, %s", username.c_str(), password.c_str());
-            audioTransport_->getNiceConnection()->setRemoteCredentials(username, password);
-          }
-
+          audioTransport_ = new DtlsTransport(AUDIO_TYPE, "audio", bundle_, remoteSdp_.isRtcpMux, this, stunServer_, stunPort_, minPort_, maxPort_, username, password);
         }
       }
     }
-
     
     if(trickleEnabled_){
       std::string object = this->getLocalSdp();
@@ -154,18 +108,13 @@ namespace erizo {
     }
 
     if (!remoteSdp_.getCandidateInfos().empty()){
-      ELOG_DEBUG("There are candidate in the SDP: Setting Remote Candidates");
+      ELOG_DEBUG("There are candidate in the SDP: Setting Remote Candidates!!!!");
       if (remoteSdp_.hasVideo) {
         videoTransport_->setRemoteCandidates(remoteSdp_.getCandidateInfos(), bundle_);
       }
       if (!bundle_ && remoteSdp_.hasAudio) {
         audioTransport_->setRemoteCandidates(remoteSdp_.getCandidateInfos(), bundle_);
       }
-    }
-
-    if (remoteSdp_.videoBandwidth !=0){
-      ELOG_DEBUG("Setting remote bandwidth %u", remoteSdp_.videoBandwidth);
-      this->rtcpProcessor_->setVideoBW(remoteSdp_.videoBandwidth*1000);
     }
 
     return true;
@@ -198,10 +147,6 @@ namespace erizo {
       }else{
         ELOG_ERROR("Cannot add remote candidate with no Media (video or audio)");
       }
-    }
-
-    for (uint8_t it = 0; it < tempSdp.getCandidateInfos().size(); it++){
-      remoteSdp_.addCandidate(tempSdp.getCandidateInfos()[it]);
     }
     return res;
   }
@@ -292,21 +237,20 @@ namespace erizo {
   int WebRtcConnection::deliverVideoData_(char* buf, int len) {
     if (videoTransport_ != NULL) {
       if (videoEnabled_ == true) {
-  
-        RtpHeader* h = reinterpret_cast<RtpHeader*>(buf);
-        if (h->getPayloadType() == RED_90000_PT && !remoteSdp_.supportPayloadType(RED_90000_PT)) {
-          // This is a RED/FEC payload, but our remote endpoint doesn't support that (most likely because it's firefox :/ )
-          // Let's go ahead and run this through our fec receiver to convert it to raw VP8
-          webrtc::RTPHeader hackyHeader;
-          hackyHeader.headerLength = h->getHeaderLength();
-          hackyHeader.sequenceNumber = h->getSeqNumber();
-          // FEC copies memory, manages its own memory, including memory passed in callbacks (in the callback, be sure to memcpy out of webrtc's buffers
-          if (fec_receiver_.AddReceivedRedPacket(hackyHeader, (const uint8_t*) buf, len, ULP_90000_PT) == 0) {
-            fec_receiver_.ProcessReceivedFec();
+          RtpHeader* h = reinterpret_cast<RtpHeader*>(buf);
+          if (h->getPayloadType() == RED_90000_PT && !remoteSdp_.supportPayloadType(RED_90000_PT)) {
+              // This is a RED/FEC payload, but our remote endpoint doesn't support that (most likely because it's firefox :/ )
+              // Let's go ahead and run this through our fec receiver to convert it to raw VP8
+              webrtc::RTPHeader hackyHeader;
+              hackyHeader.headerLength = h->getHeaderLength();
+              hackyHeader.sequenceNumber = h->getSeqNumber();
+              // FEC copies memory, manages its own memory, including memory passed in callbacks (in the callback, be sure to memcpy out of webrtc's buffers
+              if (fec_receiver_.AddReceivedRedPacket(hackyHeader, (const uint8_t*) buf, len, ULP_90000_PT) == 0) {
+                  fec_receiver_.ProcessReceivedFec();
+              }
+            } else {
+              this->queueData(0, buf, len, videoTransport_, VIDEO_PACKET);
           }
-        } else {
-          this->queueData(0, buf, len, videoTransport_, VIDEO_PACKET);
-        }
       }
     }
     return len;
@@ -314,17 +258,24 @@ namespace erizo {
 
   int WebRtcConnection::deliverFeedback_(char* buf, int len){
     // Check where to send the feedback
+    RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
+    if (chead->getSourceSSRC() == this->getAudioSourceSSRC()) {
+        writeSsrc(buf,len,this->getAudioSinkSSRC());
+    } else {
+        writeSsrc(buf,len,this->getVideoSinkSSRC());      
+    }
 
-    rtcpProcessor_->analyzeFeedback(buf,len);
+    if (videoTransport_ != NULL) {
+      this->queueData(0, buf, len, videoTransport_, OTHER_PACKET);
+    }
     return len;
   }
 
   void WebRtcConnection::writeSsrc(char* buf, int len, unsigned int ssrc) {
-    ELOG_DEBUG("LEN %d", len);
     RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
     RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
     //if it is RTCP we check it it is a compound packet
-    if (chead->isRtcp()) {      
+    if (chead->isRtcp()) {
       char* movingBuf = buf;
       int rtcpLength = 0;
       int totalLength = 0;
@@ -333,7 +284,6 @@ namespace erizo {
         RtcpHeader *chead= reinterpret_cast<RtcpHeader*>(movingBuf);
         rtcpLength= (ntohs(chead->length)+1)*4;      
         totalLength+= rtcpLength;
-        ELOG_DEBUG("Is RTCP, prev SSRC %u, new %u, len %d ", chead->getSSRC(), ssrc, rtcpLength);
         chead->ssrc=htonl(ssrc);
         if (chead->packettype == RTCP_PS_Feedback_PT){
           FirHeader *thefir = reinterpret_cast<FirHeader*>(movingBuf);
@@ -354,16 +304,13 @@ namespace erizo {
     
     // PROCESS RTCP
     RtcpHeader* chead = reinterpret_cast<RtcpHeader*>(buf);
-    if (chead->isRtcp()) {
+    if (chead->isRtcp()) {    
       thisStats_.processRtcpPacket(buf, len);
-      if (chead->packettype == RTCP_Sender_PT) { //Sender Report
-        rtcpProcessor_->analyzeSr(chead);
-      }
     }
 
     // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
     if (chead->isFeedback()){
-      if (fbSink_ != NULL && shouldSendFeedback_) {
+      if (fbSink_ != NULL) {
         fbSink_->deliverFeedback(buf,len);
       }
     } else {
@@ -372,9 +319,9 @@ namespace erizo {
         // Check incoming SSRC
         RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
         RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
-        uint32_t recvSSRC;
+        unsigned int recvSSRC;
         if (chead->packettype == RTCP_Sender_PT) { //Sender Report
-          recvSSRC = chead->getSSRC();             
+          recvSSRC = chead->getSSRC();
         }else{
           recvSSRC = head->getSSRC();
         }
@@ -428,8 +375,6 @@ namespace erizo {
         }
       }
     }
-    // check if we need to send FB || RR messages
-    rtcpProcessor_->checkRtcpFb();      
   }
 
   int WebRtcConnection::sendPLI() {
@@ -440,14 +385,52 @@ namespace erizo {
     thePLI.setSourceSSRC(this->getVideoSourceSSRC());
     thePLI.setLength(2);
     char *buf = reinterpret_cast<char*>(&thePLI);
-    int len = (thePLI.getLength()+1)*4;
-    this->queueData(0, buf, len , videoTransport_, OTHER_PACKET);
-    return len; 
+    this->deliverFeedback_(buf, (thePLI.getLength()+1)*4);
+    return (thePLI.getLength()+1)*4; 
     
+    /*
+    ELOG_DEBUG("Generating FIR Packet");
+    sequenceNumberFIR_++; // do not increase if repetition
+    int pos = 0;
+    uint8_t rtcpPacket[50];
+    // add full intra request indicator
+    uint8_t FMT = 4;
+    rtcpPacket[pos++] = (uint8_t) 0x80 + FMT;
+    rtcpPacket[pos++] = (uint8_t) 206;
+
+    //Length of 4
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) (4);
+
+    // Add our own SSRC
+    uint32_t* ptr = reinterpret_cast<uint32_t*>(rtcpPacket + pos);
+    ptr[0] = htonl(this->getVideoSinkSSRC());
+    pos += 4;
+
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) 0;
+    // Additional Feedback Control Information (FCI)
+    uint32_t* ptr2 = reinterpret_cast<uint32_t*>(rtcpPacket + pos);
+    ptr2[0] = htonl(this->getVideoSourceSSRC());
+    pos += 4;
+
+    rtcpPacket[pos++] = (uint8_t) (sequenceNumberFIR_);
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) 0;
+    rtcpPacket[pos++] = (uint8_t) 0;
+
+    if (videoTransport_ != NULL) {
+      if (videoTransport_->getTransportState()!=TRANSPORT_READY)
+        ELOG_DEBUG("Sending FIR when not READY %d", videoTransport_->getTransportState());
+      videoTransport_->write((char*)rtcpPacket, pos);
+    }
+    return pos;
+    */
+
   }
 
-  
-     
   void WebRtcConnection::updateState(TransportState state, Transport * transport) {
     boost::mutex::scoped_lock lock(updateStateMutex_);
     WebRTCEvent temp = globalState_;
@@ -508,7 +491,6 @@ namespace erizo {
       case TRANSPORT_FAILED:
         temp = CONN_FAILED;
         sending_ = false;
-        msg = remoteSdp_.getSdp();
         ELOG_INFO("WebRtcConnection failed, stopping sending");
         cond_.notify_one();
         break;
@@ -597,13 +579,10 @@ namespace erizo {
       dataPacket p_;
       memcpy(p_.data, buf, length);
       p_.comp = comp;
-//      p_.type = (transport->mediaType == VIDEO_TYPE) ? VIDEO_PACKET : AUDIO_PACKET;
-      p_.type = type;
+      p_.type = (transport->mediaType == VIDEO_TYPE) ? VIDEO_PACKET : AUDIO_PACKET;
       p_.length = length;
       changeDeliverPayloadType(&p_, type);
       sendQueue_.push(p_);
-    }else{
-      ELOG_DEBUG("Discarding Packets");
     }
     cond_.notify_one();
   }
@@ -617,9 +596,6 @@ namespace erizo {
   }
 
   void WebRtcConnection::sendLoop() {
-    uint32_t partial_bitrate = 0;
-    uint64_t sentVideoBytes = 0;
-    uint64_t lastSecondVideoBytes = 0;
       while (sending_) {
           dataPacket p;
           {
@@ -642,24 +618,6 @@ namespace erizo {
           }
 
           if (bundle_ || p.type == VIDEO_PACKET) {
-            if (rateControl_){
-              if (p.type == VIDEO_PACKET){
-                if (rateControl_ == 1)
-                  continue;
-                gettimeofday(&now_, NULL);
-                uint64_t nowms = (now_.tv_sec * 1000) + (now_.tv_usec / 1000);
-                uint64_t markms = (mark_.tv_sec * 1000) + (mark_.tv_usec/1000);
-                if ((nowms - markms)>=100){
-                  mark_ = now_;
-                  lastSecondVideoBytes = sentVideoBytes;
-                }
-                partial_bitrate = ((sentVideoBytes - lastSecondVideoBytes)*8)*10;
-                if (partial_bitrate > this->rateControl_){
-                  continue;
-                }
-                sentVideoBytes+=p.length;
-              }
-            }
               videoTransport_->write(p.data, p.length);
           } else {
               audioTransport_->write(p.data, p.length);
@@ -667,5 +625,4 @@ namespace erizo {
       }
   }
 }
-
 /* namespace erizo */

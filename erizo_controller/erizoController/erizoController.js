@@ -2,6 +2,9 @@
 var crypto = require('crypto');
 var rpcPublic = require('./rpc/rpcPublic');
 var ST = require('./Stream');
+var http = require('http');
+var server = http.createServer();
+var io = require('socket.io').listen(server, {log:false});
 var config = require('./../../licode_config');
 var Permission = require('./permission');
 var Getopt = require('node-getopt');
@@ -16,8 +19,6 @@ GLOBAL.config.erizoController.publicIP = GLOBAL.config.erizoController.publicIP 
 GLOBAL.config.erizoController.hostname = GLOBAL.config.erizoController.hostname|| '';
 GLOBAL.config.erizoController.port = GLOBAL.config.erizoController.port || 8080;
 GLOBAL.config.erizoController.ssl = GLOBAL.config.erizoController.ssl || false;
-GLOBAL.config.erizoController.listen_port = GLOBAL.config.erizoController.listen_port || 8080;
-GLOBAL.config.erizoController.listen_ssl = GLOBAL.config.erizoController.listen_ssl || false;
 GLOBAL.config.erizoController.turnServer = GLOBAL.config.erizoController.turnServer || undefined;
 if (config.erizoController.turnServer !== undefined) {
     GLOBAL.config.erizoController.turnServer.url = GLOBAL.config.erizoController.turnServer.url || '';
@@ -35,17 +36,14 @@ GLOBAL.config.erizoController.roles = GLOBAL.config.erizoController.roles || {"p
 var getopt = new Getopt([
   ['r' , 'rabbit-host=ARG'            , 'RabbitMQ Host'],
   ['g' , 'rabbit-port=ARG'            , 'RabbitMQ Port'],
-  ['b' , 'rabbit-heartbeat=ARG'       , 'RabbitMQ AMQP Heartbeat Timeout'],
   ['l' , 'logging-config-file=ARG'    , 'Logging Config File'],
   ['t' , 'stunServerUrl=ARG'          , 'Stun Server URL'],
   ['b' , 'defaultVideoBW=ARG'         , 'Default video Bandwidth'],
   ['M' , 'maxVideoBW=ARG'             , 'Max video bandwidth'],
   ['i' , 'publicIP=ARG'               , 'Erizo Controller\'s public IP'],
   ['H' , 'hostname=ARG'               , 'Erizo Controller\'s hostname'],
-  ['p' , 'port'                       , 'Port used by clients to reach Erizo Controller'],
-  ['S' , 'ssl'                        , 'Enable SSL for clients'],
-  ['L' , 'listen_port'                , 'Port where Erizo Controller will listen to new connections.'],
-  ['s' , 'listen_ssl'                 , 'Enable HTTPS in server'],
+  ['p' , 'port'                       , 'Port where Erizo Controller will listen to new connections.'],
+  ['S' , 'ssl'                        , 'Erizo Controller\'s hostname'],
   ['T' , 'turn-url'                   , 'Turn server\'s URL.'],
   ['U' , 'turn-username'              , 'Turn server\'s username.'],
   ['P' , 'turn-password'              , 'Turn server\'s password.'],
@@ -74,10 +72,6 @@ for (var prop in opt.options) {
                 GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
                 GLOBAL.config.rabbit.port = value;
                 break;
-            case "rabbit-heartbeat":
-                GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
-                GLOBAL.config.rabbit.heartbeat = value;
-                break;
             case "logging-config-file":
                 GLOBAL.config.logger = GLOBAL.config.logger || {};
                 GLOBAL.config.logger.config_file = value;
@@ -93,28 +87,11 @@ for (var prop in opt.options) {
 var logger = require('./../common/logger').logger;
 var amqper = require('./../common/amqper');
 var controller = require('./roomController');
-var ecch = require('./ecch').Ecch({amqper: amqper});
 
 // Logger
 var log = logger.getLogger("ErizoController");
 
-var server;
-
-if (GLOBAL.config.erizoController.listen_ssl) {
-    var https = require('https');
-    var fs = require('fs');
-    var options = {
-        key: fs.readFileSync('../../cert/key.pem').toString(),
-        cert: fs.readFileSync('../../cert/cert.pem').toString()
-    };
-    server = https.createServer(options);
-} else {
-    var http = require('http');
-    server = http.createServer();
-}
-
-server.listen(GLOBAL.config.erizoController.listen_port);
-var io = require('socket.io').listen(server, {log:false});
+server.listen(8080);
 
 io.set('log level', 0);
 
@@ -335,7 +312,7 @@ var listen = function () {
                                 log.debug('Token of p2p room');
                                 room.p2p = true;
                             } else {
-                                room.controller = controller.RoomController({amqper: amqper, ecch: ecch});
+                                room.controller = controller.RoomController({amqper: amqper});
                                 room.controller.addEventListener(function(type, event) {
                                     // TODO Send message to room? Handle ErizoJS disconnection.
                                     if (type === "unpublish") {
@@ -493,7 +470,7 @@ var listen = function () {
             } else if (options.state === 'erizo') {
                 log.info("New publisher");
                 
-                socket.room.controller.addPublisher(id, options, function (signMess) {
+                socket.room.controller.addPublisher(id, function (signMess) {
 
                     if (signMess.type === 'initializing') {
                         callback(id);
@@ -512,14 +489,14 @@ var listen = function () {
                         socket.emit('connection_failed',{});
                         socket.state = 'sleeping';
                         if (!socket.room.p2p) {
-                            socket.room.controller.removePublisher(id);
+                            socket.room.controller.removePublisher(streamId);
                             if (GLOBAL.config.erizoController.report.session_events) {
                                 var timeStamp = new Date();
-                                amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'failed', stream: id, sdp: signMess.sdp, timestamp: timeStamp.getTime()});
+                                amqper.broadcast('event', {room: socket.room.id, user: socket.id, type: 'failed', stream: streamId, timestamp: timeStamp.getTime()});
                             }
                         }
 
-                        var index = socket.streams.indexOf(id);
+                        var index = socket.streams.indexOf(streamId);
                         if (index !== -1) {
                             socket.streams.splice(index, 1);
                         }
@@ -593,9 +570,6 @@ var listen = function () {
                                 amqper.broadcast('event', {room: socket.room.id, user: socket.id, name: socket.user.name, type: 'subscribe', stream: options.streamId, timestamp: timeStamp.getTime()});
                             }
                             return;
-                        }
-                        if(signMess.type==='bandwidthAlert'){
-                          socket.emit('onBandwidthAlert', {streamID:options.streamId, message:signMess.message, bandwidth: signMess.bandwidth});
                         }
 
                         // if (signMess.type === 'candidate') {

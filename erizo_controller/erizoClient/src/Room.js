@@ -173,7 +173,7 @@ Erizo.Room = function (spec) {
 
             stream.pc = Erizo.Connection({callback: function (msg) {
                 sendSDPSocket('signaling_message', {streamId: stream.getID(), peerSocket: peerSocket, msg: msg});
-            }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW, shouldRemoveREMB: spec.shouldRemoveREMB, limitMaxAudioBW:spec.maxAudioBW, limitMaxVideoBW: spec.maxVideoBW});
+            }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: spec.maxAudioBW, maxVideoBW: spec.maxVideoBW, shouldRemoveREMB: spec.shouldRemoveREMB});
 
             stream.pc.onaddstream = function (evt) {
                 // Draw on html
@@ -184,16 +184,6 @@ Erizo.Room = function (spec) {
             };
 
         }
-
-        that.socket.on('onBandwidthAlert', function (arg){
-            L.Logger.info("Bandwidth Alert on", arg.streamID, "message", arg.message,"BW:", arg.bandwidth);
-            if(arg.streamID){
-                var stream = that.remoteStreams[arg.streamID];
-
-                var evt = Erizo.StreamEvent({type:'bandwidth-alert', stream:stream, msg:arg.message, bandwidth: arg.bandwidth});
-                stream.dispatchEvent(evt);
-            }
-        });
 
         // We receive an event of new data in one of the streams
         that.socket.on('onDataStream', function (arg) {
@@ -235,11 +225,6 @@ Erizo.Room = function (spec) {
                   var disconnectEvt = Erizo.RoomEvent({type: "stream-failed"});
                   that.dispatchEvent(disconnectEvt);
             }
-        });
-
-        that.socket.on('error', function(e){
-            L.Logger.error("Cannot connect to Erizo-Controller (socket.io error)", e);
-            error(e);
         });
 
         // First message with the token
@@ -318,8 +303,6 @@ Erizo.Room = function (spec) {
             that.dispatchEvent(connectEvt);
         }, function (error) {
             L.Logger.error("Not Connected! Error: " + error);
-            var connectEvt = Erizo.RoomEvent({type: "room-error"});
-            that.dispatchEvent(connectEvt);
         });
     };
 
@@ -339,14 +322,6 @@ Erizo.Room = function (spec) {
         options.maxVideoBW = options.maxVideoBW || spec.defaultVideoBW;
         if (options.maxVideoBW > spec.maxVideoBW) {
             options.maxVideoBW = spec.maxVideoBW;
-        }
-
-        if (options.minVideoBW === undefined){
-            options.minVideoBW = 0;
-        }
-
-        if (options.minVideoBW > spec.defaultVideoBW){
-            options.minVideoBW = spec.defaultVideoBW;
         }
 
         // 1- If the stream is not local we do nothing.
@@ -423,7 +398,7 @@ Erizo.Room = function (spec) {
 
                 } else {
 
-                    sendSDPSocket('publish', {state: 'erizo', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), minVideoBW: options.minVideoBW, attributes: stream.getAttributes()}, undefined, function (id, error) {
+                    sendSDPSocket('publish', {state: 'erizo', data: stream.hasData(), audio: stream.hasAudio(), video: stream.hasVideo(), screen: stream.hasScreen(), attributes: stream.getAttributes()}, undefined, function (id, error) {
 
                         if (id === null) {
                             L.Logger.error('Error when publishing the stream: ', error);
@@ -450,7 +425,8 @@ Erizo.Room = function (spec) {
                         stream.pc = Erizo.Connection({callback: function (message) {
                             console.log("Sending message", message);
                             sendSDPSocket('signaling_message', {streamId: stream.getID(), msg: message}, undefined, function () {});
-                        }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, limitMaxAudioBW: spec.maxAudioBW, limitMaxVideoBW: spec.maxVideoBW, audio:stream.hasAudio(), video: stream.hasVideo(), audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate, shouldRemoveREMB: options.shouldRemoveREMB});
+                        }, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer, maxAudioBW: options.maxAudioBW, maxVideoBW: options.maxVideoBW, audio:stream.hasAudio(), video: stream.hasVideo(), audioCodec: options.audioCodec, audioHz: options.audioHz, audioBitrate: options.audioBitrate, shouldRemoveREMB: options.shouldRemoveREMB});
+
                         stream.pc.addStream(stream.stream);
                         stream.pc.createOffer();
                         if(callback) callback(id);
@@ -581,7 +557,7 @@ Erizo.Room = function (spec) {
                         stream.pc = Erizo.Connection({callback: function (message) {
                             L.Logger.info("Sending message", message);
                             sendSDPSocket('signaling_message', {streamId: stream.getID(), msg: message, browser: stream.pc.browser}, undefined, function () {});
-                        }, nop2p: true, audio: options.audio, video: options.video, stunServerUrl: that.stunServerUrl, turnServer: that.turnServer});
+                        }, nop2p: true, audio: stream.hasAudio(), video: stream.hasVideo(), stunServerUrl: that.stunServerUrl, turnServer: that.turnServer});
 
                         stream.pc.onaddstream = function (evt) {
                             // Draw on html

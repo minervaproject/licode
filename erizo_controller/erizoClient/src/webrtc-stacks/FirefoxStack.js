@@ -38,16 +38,14 @@ Erizo.FirefoxStack = function (spec) {
         mozDontOfferDataChannel: true
     };
 
-    var errorCallback = function (message) {
-        L.Logger.error("Error in Stack ", message);
-    }
-    var gotCandidate = false;
+    that.roapSessionId = 103;
+
     that.peerConnection = new WebkitRTCPeerConnection(that.pc_config, that.con);
+
     spec.localCandidates = [];
 
     that.peerConnection.onicecandidate =  function (event) {
         if (event.candidate) {
-            gotCandidate = true;
 
             if (!event.candidate.candidate.match(/a=/)) {
                 event.candidate.candidate ="a="+event.candidate.candidate;
@@ -84,10 +82,8 @@ Erizo.FirefoxStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=video.*\n/);
             }
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         if (spec.audio && spec.maxAudioBW) {
@@ -95,10 +91,8 @@ Erizo.FirefoxStack = function (spec) {
             if (a == null){
               a = sdp.match(/m=audio.*\n/);
             }
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         return sdp;
@@ -121,12 +115,11 @@ Erizo.FirefoxStack = function (spec) {
         that.peerConnection.setLocalDescription(localDesc);
     }
 
-    that.createOffer = function (isSubscribe) {
-        if (isSubscribe === true) {            
-            that.peerConnection.createOffer(setLocalDesc, errorCallback, that.mediaConstraints);
-        } else {
-            that.peerConnection.createOffer(setLocalDesc, errorCallback);
-        }
+    that.createOffer = function () {
+        that.peerConnection.createOffer(setLocalDesc, function(error){
+          L.Logger.error("Error", error);
+        
+        }, that.mediaConstraints);
     };
 
     that.addStream = function (stream) {
@@ -145,7 +138,7 @@ Erizo.FirefoxStack = function (spec) {
 
     that.processSignalingMessage = function (msg) {
         
-//        L.Logger.debug("Process Signaling Message", msg);
+        //console.log("Process Signaling Message", msg);
 
         if (msg.type === 'offer') {
             msg.sdp = setMaxBW(msg.sdp);
@@ -172,14 +165,12 @@ Erizo.FirefoxStack = function (spec) {
             that.peerConnection.setLocalDescription(localDesc, function(){
                 that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function() {
                     spec.remoteDescriptionSet = true;
-                    L.Logger.info("Remote Description successfully set");
-                    while (spec.remoteCandidates.length > 0 && gotCandidate) {
-                        L.Logger.info("Setting stored remote candidates")
+                    while (spec.remoteCandidates.length > 0) {
                         // IMPORTANT: preserve ordering of candidates
                         that.peerConnection.addIceCandidate(spec.remoteCandidates.shift());
                     }
                     while(spec.localCandidates.length > 0) {
-                        L.Logger.info("Sending Candidate from list");
+                        L.Logger.info("Sending Candidate");
                         // IMPORTANT: preserve ordering of candidates
                         spec.callback({type:'candidate', candidate: spec.localCandidates.shift()});
                     }
@@ -201,18 +192,12 @@ Erizo.FirefoxStack = function (spec) {
                 }
                 obj.candidate = obj.candidate.replace(/ generation 0/g, "");
                 obj.candidate = obj.candidate.replace(/ udp /g, " UDP ");
-               
                 obj.sdpMLineIndex = parseInt(obj.sdpMLineIndex);
                 var candidate = new RTCIceCandidate(obj);
-//                L.logger.debug("Remote Candidate",candidate);
+                //console.log("Remote Candidate",candidate);
 
-                if (spec.remoteDescriptionSet && gotCandidate) {
+                if (spec.remoteDescriptionSet) {
                     that.peerConnection.addIceCandidate(candidate);
-                    while (spec.remoteCandidates.length > 0) {
-                        L.Logger.info("Setting stored remote candidates")
-                        // IMPORTANT: preserve ordering of candidates
-                        that.peerConnection.addIceCandidate(spec.remoteCandidates.shift());
-                    }
                 } else {
                     spec.remoteCandidates.push(candidate);
                 }

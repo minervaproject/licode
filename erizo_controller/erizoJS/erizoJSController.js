@@ -21,164 +21,38 @@ exports.ErizoJSController = function (spec) {
 
         INTERVAL_TIME_SDP = 100,
         INTERVAL_TIME_KILL = 30*60*1000, // Timeout to kill itself after a timeout since the publisher leaves room.
-        INTERVAL_STATS = 1000,
-        MIN_RECOVER_BW = 50000,
+        INTERVAL_STATS = 3000,
         initWebRtcConnection,
         getSdp,
-        calculateAverage,
         getRoap;
 
 
     var CONN_INITIAL = 101, CONN_STARTED = 102,CONN_GATHERED = 103, CONN_READY = 104, CONN_FINISHED = 105, CONN_CANDIDATE = 201, CONN_SDP = 202, CONN_FAILED = 500;
 
-    /* BW Status
-     * 0 - Stable
-     * 1 - Insufficient Bandwidth
-     * 2 - Trying recovery
-     * 3 - Won't recover
-     */
 
-    var BW_STABLE = 0, BW_INSUFFICIENT = 1, BW_RECOVERING = 2, BW_WONTRECOVER = 3;
-
-    calculateAverage = function (values) {
-      if (values.length === undefined)
-        return 0;
-      var cnt = values.length;
-      var tot = parseInt(0);
-      for (var i = 0; i < values.length; i++){
-          tot+=parseInt(values[i]);
-      }
-      return Math.ceil(tot/cnt);
-    };
 
     /*
      * Given a WebRtcConnection waits for the state CANDIDATES_GATHERED for set remote SDP.
      */
-    initWebRtcConnection = function (wrtc, callback, id_pub, id_sub, browser, createOffer) {
+    initWebRtcConnection = function (wrtc, callback, id_pub, id_sub, browser) {
 
-        wrtc.bwValues = [];
-        var isReporting = true;
-        var ticks = 0;
-        var retries = 0;
-        var ticksToTry = 0;
-        var lastAverage, average, lastBWValue, toRecover;
-        var nextRetry = 0;
-        wrtc.bwStatus = BW_STABLE;
-
-
-        if (wrtc.minVideoBW || GLOBAL.config.erizoController.report.rtcp_stats){
-            if (wrtc.minVideoBW){
-                wrtc.minVideoBW = wrtc.minVideoBW*1000; // We need it in bps
-                wrtc.lowerThres = Math.floor(wrtc.minVideoBW*(1-0.2));
-                wrtc.upperThres = Math.ceil(wrtc.minVideoBW);
+        if (GLOBAL.config.erizoController.report.rtcp_stats) {
+          var intervalId = setInterval(function () {
+            var newStats = wrtc.getStats();
+            if (newStats == null){
+              console.log("Stopping stats");
+              clearInterval(intervalId);
             }
-            var intervalId = setInterval(function () {
-                var newStats = wrtc.getStats();
-                if (newStats == null){
-                    log.debug("Stopping stats");
-                    clearInterval(intervalId);
-                    return;
-                }
-
-                var theStats = JSON.parse(newStats);
-                if (wrtc.minVideoBW){
-
-                    for (var i = 0; i < theStats.length; i++){
-                        if(theStats[i].hasOwnProperty('bandwidth')){   // Only one stream should have bandwidth
-                            lastBWValue = theStats[i].bandwidth;
-                            wrtc.bwValues.push(lastBWValue);
-                            if (wrtc.bwValues.length > 5){
-                                wrtc.bwValues.shift();
-                            }
-                            average = calculateAverage(wrtc.bwValues);
-                        }
-                    }
-                    toRecover = (average/4)<MIN_RECOVER_BW?(average/4):MIN_RECOVER_BW;
-                    switch (wrtc.bwStatus){
-                        case BW_STABLE:
-                            if(average <= lastAverage && (average < wrtc.lowerThres)){
-                                if (++ticks > 2){
-                                    log.debug("STABLE STATE, Bandwidth is insufficient, moving to state BW_INSUFFICIENT", average, "lowerThres", wrtc.lowerThres);
-                                    wrtc.bwStatus = BW_INSUFFICIENT;
-                                    wrtc.setFeedbackReports(false, toRecover);
-                                    ticks = 0;
-                                    callback('callback', {type:'bandwidthAlert', message:'insufficient', bandwidth: average});
-                                }
-                            }
-                            break;
-                        case BW_INSUFFICIENT:
-                            if(average > wrtc.upperThres){
-                                log.debug("BW_INSUFFICIENT State: we have recovered", average, "lowerThres", wrtc.lowerThres);
-                                ticks = 0;
-                                nextRetry = 0;
-                                retries = 0;
-                                wrtc.bwStatus = BW_STABLE;
-                                wrtc.setFeedbackReports(true, 0);
-                                callback('callback', {type:'bandwidthAlert', message:'recovered', bandwidth: average});
-                            }
-                            else if (retries>=3){
-                                log.debug("BW_INSUFFICIENT State: moving to won't recover", average, "lowerThres", wrtc.lowerThres);
-                                wrtc.bwStatus = BW_WONTRECOVER;
-                            }
-                            else if (nextRetry === 0){  //schedule next retry
-                                nextRetry = ticks + 20;
-                            }
-                            else if (++ticks == nextRetry){  // next retry is in order
-                                wrtc.bwStatus = BW_RECOVERING;
-                                ticksToTry = ticks + 10;
-                                wrtc.setFeedbackReports (false, average);
-                            }
-                            break;
-                        case BW_RECOVERING:
-                            log.debug("In recovering state lastValue", lastBWValue, "lastAverage", lastAverage, "lowerThres", wrtc.lowerThres);
-                            if(average > wrtc.upperThres){
-                                log.debug("BW_RECOVERING State: we have recovered", average, "lowerThres", wrtc.lowerThres);
-                                ticks = 0;
-                                nextRetry = 0;
-                                retries = 0;
-                                wrtc.bwStatus = BW_STABLE;
-                                wrtc.setFeedbackReports(true, 0);
-                                callback('callback', {type:'bandwidthAlert', message:'recovered', bandwidth: average});
-                            }
-                            else if (average> lastAverage){ //we are recovering
-                                log.debug("BW_RECOVERING State: we have improved, more trying time", average, "lowerThres", wrtc.lowerThres);
-                                wrtc.setFeedbackReports(false, average*(1+0.3));
-                                ticksToTry=ticks+10;
-
-                            }
-                            else if (++ticks >= ticksToTry){ //finish this retry
-                                log.debug("BW_RECOVERING State: Finished this retry", retries, average, "lowerThres", wrtc.lowerThres);
-                                ticksToTry = 0;
-                                nextRetry = 0;
-                                retries++;
-                                wrtc.bwStatus = BW_INSUFFICIENT;
-                                wrtc.setFeedbackReports (false, toRecover);
-                            }
-                            break;
-                        case BW_WONTRECOVER:
-                            log.debug("BW_WONTRECOVER", average, "lowerThres", wrtc.lowerThres);
-                            ticks = 0;
-                            nextRetry = 0;
-                            retries = 0;
-                            average = 0;
-                            lastAverage = 0;
-                            wrtc.bwStatus = BW_STABLE;
-                            wrtc.minVideoBW = false;
-                            wrtc.setFeedbackReports (false, 1);
-                            callback('callback', {type:'bandwidthAlert', message:'wont-recover', bandwidth: average});
-                            break;
-                        default:
-                            log.error("Unknown BW status");
-                    }
-                    lastAverage = average;
-                }
-                if (GLOBAL.config.erizoController.report.rtcp_stats) {
-                    wrtc.getStats(function (newStats){
-                        var timeStamp = new Date();
-                        amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: theStats, timestamp:timeStamp.getTime()});
-                    });
-                }
-            }, INTERVAL_STATS);
+           // console.log("new STATS ", newStats);
+            var timeStamp = new Date();
+            amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: JSON.parse(newStats), timestamp:timeStamp.getTime()});
+          }, INTERVAL_STATS);
+          /*
+            wrtc.getStats(function (newStats){
+                var timeStamp = new Date();
+                amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: JSON.parse(newStats), timestamp:timeStamp.getTime()});
+            });
+            */
         }
 
         wrtc.init( function (newStatus, mess){
@@ -196,12 +70,9 @@ exports.ErizoJSController = function (spec) {
 
                 case CONN_SDP:
                 case CONN_GATHERED:
-                    log.debug('Sending SDP', mess);
+//                    log.debug('Sending SDP', mess);
                     mess = mess.replace(that.privateRegexp, that.publicIP);
-                    if (createOffer)
-                        callback('callback', {type: 'offer', sdp: mess});
-                    else
-                        callback('callback', {type: 'answer', sdp: mess});
+                    callback('callback', {type: 'answer', sdp: mess});
                     break;
 
                 case CONN_CANDIDATE:
@@ -210,7 +81,7 @@ exports.ErizoJSController = function (spec) {
                     break;
 
                 case CONN_FAILED:
-                    callback('callback', {type: 'failed', sdp: mess});
+                    callback('callback', {type: 'failed'});
                     break;
 
                 case CONN_READY:
@@ -224,10 +95,7 @@ exports.ErizoJSController = function (spec) {
             }
         });
         log.info("initializing");
-        if (createOffer===true){
-            log.info("Creating Offer");
-            wrtc.createOffer();
-        }
+
         callback('callback', {type: 'initializing'});
     };
 
@@ -325,30 +193,12 @@ exports.ErizoJSController = function (spec) {
                     subscribers[streamId][peerId].setRemoteSdp(msg.sdp);
                 } else if (msg.type === 'candidate') {
                     subscribers[streamId][peerId].addRemoteCandidate(msg.candidate.sdpMid, msg.candidate.sdpMLineIndex , msg.candidate.candidate);
-                } else if (msg.type === 'updatestream'){
-                    subscribers[streamId][peerId].setRemoteSdp(msg.sdp);
                 }
             } else {
                 if (msg.type === 'offer') {
                     publishers[streamId].wrtc.setRemoteSdp(msg.sdp);
                 } else if (msg.type === 'candidate') {
                     publishers[streamId].wrtc.addRemoteCandidate(msg.candidate.sdpMid, msg.candidate.sdpMLineIndex, msg.candidate.candidate);
-                } else if (msg.type === 'updatestream'){
-                    if (msg.sdp){
-                        publishers[streamId].wrtc.setRemoteSdp(msg.sdp);
-                    }
-                    if (msg.minVideoBW){
-                        log.debug("Updating minVideoBW to ", msg.minVideoBW);
-                        publishers[streamId].minVideoBW = msg.minVideoBW;
-                        for (var sub in subscribers[streamId]){
-                            log.debug("sub", sub);
-                            log.debug("updating subscriber BW from", subscribers[streamId][sub].minVideoBW, "to", msg.minVideoBW*1000 );
-                            var theConn = subscribers[streamId][sub];
-                            theConn.minVideoBW = msg.minVideoBW*1000; // We need it in bps
-                            theConn.lowerThres = Math.floor(theConn.minVideoBW*(1-0.2));
-                            theConn.upperThres = Math.ceil(theConn.minVideoBW*(1+0.1));
-                        }
-                    }
                 }
             }
 
@@ -360,17 +210,16 @@ exports.ErizoJSController = function (spec) {
      * and a new WebRtcConnection. This WebRtcConnection will be the publisher
      * of the OneToManyProcessor.
      */
-    that.addPublisher = function (from, minVideoBW, createOffer, callback) {
+    that.addPublisher = function (from, callback) {
 
         if (publishers[from] === undefined) {
 
-            log.info("Adding publisher peer_id ", from, "minVideoBW", minVideoBW, "createOffer", createOffer);
+            log.info("Adding publisher peer_id ", from);
 
             var muxer = new addon.OneToManyProcessor(),
-                wrtc = new addon.WebRtcConnection(true, true, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport,false,
-                        GLOBAL.config.erizo.turnserver, GLOBAL.config.erizo.turnport, GLOBAL.config.erizo.turnusername, GLOBAL.config.erizo.turnpass);
+                wrtc = new addon.WebRtcConnection(true, true, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport,false);
 
-            publishers[from] = {muxer: muxer, wrtc: wrtc, minVideoBW: minVideoBW};
+            publishers[from] = {muxer: muxer, wrtc: wrtc};
             // TODO(BF): New ging-master includes rtc object on publishers, so we can get rid of ours
             publishers[from + "-wrtc"] = wrtc;
             subscribers[from] = {};
@@ -379,7 +228,7 @@ exports.ErizoJSController = function (spec) {
             wrtc.setVideoReceiver(muxer);
             muxer.setPublisher(wrtc);
 
-            initWebRtcConnection(wrtc, callback, from, undefined, undefined, createOffer);
+            initWebRtcConnection(wrtc, callback, from);
 
             //log.info('Publishers: ', publishers);
             //log.info('Subscribers: ', subscribers);
@@ -412,12 +261,10 @@ exports.ErizoJSController = function (spec) {
 
             log.info("Adding subscriber from ", from, 'to ', to, 'audio', options.audio, 'video', options.video);
 
-             var wrtc = new addon.WebRtcConnection(true, true, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport,false,
-                     GLOBAL.config.erizo.turnserver, GLOBAL.config.erizo.turnport, GLOBAL.config.erizo.turnusername, GLOBAL.config.erizo.turnpass);
+            var wrtc = new addon.WebRtcConnection(options.audio, options.video, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport,false);
 
             subscribers[to][from] = wrtc;
             publishers[to].muxer.addSubscriber(wrtc, from);
-            wrtc.minVideoBW = publishers[to].minVideoBW;
 
             initWebRtcConnection(wrtc, callback, to, from, options.browser);
 

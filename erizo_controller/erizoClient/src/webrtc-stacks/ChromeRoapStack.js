@@ -66,18 +66,14 @@ Erizo.ChromeRoapStack = function (spec) {
     var setMaxBW = function (sdp) {
         if (spec.maxVideoBW) {
             var a = sdp.match(/m=video.*\r\n/);
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         if (spec.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            if (a && (a.length > 0)) {
-                var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
-                sdp = sdp.replace(a[0], r);
-            }
+            var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
+            sdp = sdp.replace(a[0], r);
         }
 
         return sdp;

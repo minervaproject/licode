@@ -5,6 +5,7 @@ var spawn = require('child_process').spawn;
 
 var config = require('./../../licode_config');
 
+
 // Configuration default values
 GLOBAL.config = config || {};
 GLOBAL.config.erizoAgent = GLOBAL.config.erizoAgent || {};
@@ -19,16 +20,12 @@ var getopt = new Getopt([
   ['r' , 'rabbit-host=ARG'            , 'RabbitMQ Host'],
   ['g' , 'rabbit-port=ARG'            , 'RabbitMQ Port'],
   ['l' , 'logging-config-file=ARG'    , 'Logging Config File'],
-  ['b' , 'rabbit-heartbeat=ARG'       , 'RabbitMQ AMQP Heartbeat Timeout'],
-  ['M' , 'maxProcesses=ARG'           , 'Stun Server URL'],
-  ['P' , 'prerunProcesses=ARG'        , 'Default video Bandwidth'],
-  ['m' , 'metadata=ARG'               , 'JSON metadata'],
+  ['M' , 'maxProcesses=ARG'          , 'Stun Server URL'],
+  ['P' , 'prerunProcesses=ARG'         , 'Default video Bandwidth'],
   ['h' , 'help'                       , 'display this help']
 ]);
 
 opt = getopt.parse(process.argv.slice(2));
-
-var metadata;
 
 for (var prop in opt.options) {
     if (opt.options.hasOwnProperty(prop)) {
@@ -46,16 +43,10 @@ for (var prop in opt.options) {
                 GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
                 GLOBAL.config.rabbit.port = value;
                 break;
-            case "rabbit-heartbeat":
-                GLOBAL.config.rabbit = GLOBAL.config.rabbit || {};
-                GLOBAL.config.rabbit.heartbeat = value;
-                break;
             case "logging-config-file":
                 GLOBAL.config.logger = GLOBAL.config.logger || {};
                 GLOBAL.config.logger.config_file = value;
                 break;
-            case "metadata":
-                metadata = JSON.parse(value);
             default:
                 GLOBAL.config.erizoAgent[prop] = value;
                 break;
@@ -91,8 +82,6 @@ var guid = (function() {
            s4() + '-' + s4() + s4() + s4();
   };
 })();
-
-var my_erizo_agent_id = guid();
 
 var saveChild = function(id) {
     childs.push(id);
@@ -162,15 +151,12 @@ var getErizo = function () {
     return erizo_id;
 }
 
-// TODO: get metadata from a file
-var reporter = require('./erizoAgentReporter').Reporter({id: my_erizo_agent_id, metadata: metadata});
-
 var api = {
     createErizoJS: function(callback) {
         try {
 
-            var erizo_id = getErizo();
-            log.info('Get erizo JS', erizo_id);
+            var erizo_id = getErizo(); 
+            
             callback("callback", erizo_id);
 
             erizos.push(erizo_id);
@@ -186,8 +172,7 @@ var api = {
         } catch(err) {
             log.error("Error stopping ErizoJS");
         }
-    },
-    getErizoAgents: reporter.getErizoAgent
+    }
 };
 
 var interfaces = require('os').networkInterfaces(),
@@ -226,13 +211,13 @@ fillErizos();
 
 amqper.connect(function () {
     "use strict";
-
     amqper.setPublicRPC(api);
-    amqper.bind("ErizoAgent");
-    amqper.bind("ErizoAgent_" + my_erizo_agent_id);
-    amqper.bind_broadcast("ErizoAgent", function (m) {
-        log.warn('No method defined');
-    });
+
+    var rpcID = "ErizoAgent";
+    
+
+    amqper.bind(rpcID);
+
 });
 
 /*

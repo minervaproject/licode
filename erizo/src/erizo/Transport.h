@@ -27,8 +27,8 @@ namespace erizo {
       boost::shared_ptr<NiceConnection> nice_;
       MediaType mediaType;
       std::string transport_name;
-      Transport(MediaType med, const std::string &transport_name, bool bundle, bool rtcp_mux, TransportListener *transportListener, const IceConfig& iceConfig) :
-        mediaType(med), transport_name(transport_name),rtcp_mux_(rtcp_mux), transpListener_(transportListener), state_(TRANSPORT_INITIAL), iceConfig_(iceConfig), bundle_(bundle)
+      Transport(MediaType med, const std::string &transport_name, bool bundle, bool rtcp_mux, TransportListener *transportListener, const std::string &stunServer, int stunPort, int minPort, int maxPort) :
+        mediaType(med), transport_name(transport_name),rtcp_mux_(rtcp_mux), transpListener_(transportListener), state_(TRANSPORT_INITIAL), stunPort_(stunPort), minPort_(minPort), maxPort_(maxPort), stunServer_(stunServer), bundle_(bundle)
       {
       }
       virtual ~Transport(){}
@@ -37,7 +37,6 @@ namespace erizo {
       virtual void onCandidate(const CandidateInfo &candidate, NiceConnection *conn)=0;
       virtual void write(char* data, int len) = 0;
       virtual void processLocalSdp(SdpInfo *localSdp_) = 0;
-      virtual boost::shared_ptr<NiceConnection> getNiceConnection() { return nice_; };
       void setTransportListener(TransportListener * listener) {
         transpListener_ = listener;
       }
@@ -67,8 +66,11 @@ namespace erizo {
       TransportListener *transpListener_;
 
       TransportState state_;
+
+      int stunPort_, minPort_, maxPort_;
+
+      std::string stunServer_;
     protected:
-      IceConfig iceConfig_;
       bool bundle_;
   };
 }
