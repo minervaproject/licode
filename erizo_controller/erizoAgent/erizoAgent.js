@@ -183,6 +183,17 @@ var getErizo = function () {
 var reporter = require('./erizoAgentReporter').Reporter({id: my_erizo_agent_id, metadata: metadata});
 
 var api = {
+    getErizoJSInfo: function(callback) {
+        p_trans = {}
+        for (i in processes) {
+            p_trans[i] = {pid: processes[i].pid, killed: processes[i].killed, connected: processes[i].connected};
+        }
+        callback({
+            processes: p_trans,
+            erizos: erizos,
+            idle_erizos: idle_erizos
+        });
+    },
     createErizoJS: function(callback) {
         try {
 

@@ -30,4 +30,10 @@ cd $ROOT/erizo_controller
 cp $ROOT/erizo_controller/erizoClient/dist/erizo.js $EXTRAS/basic_example/public/
 cp $ROOT/nuve/nuveClient/dist/nuve.js $EXTRAS/basic_example/
 
-echo [licode] Done, run basic_example/basicServer.js
+# echo [licode] Done, run basic_example/basicServer.js
+
+cd $ROOT
+./scripts/initBasicExample.sh
+
+cd $ROOT/admin
+node admin.js &
