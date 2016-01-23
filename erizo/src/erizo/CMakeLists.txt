@@ -15,11 +15,16 @@ set(ERIZO_VERSION_MAJOR 0)
 set(ERIZO_VERSION_MINOR 1)
 set(CMAKE_CXX_FLAGS "-g -Wall -std=c++0x")
 
+include_directories(${ERIZO_SOURCE_DIR})
+
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-stack-protector")
+  include_directories("/usr/local/opt/openssl/include")
+  find_library(SSL ssl HINTS "/usr/local/opt/openssl/lib")
+  find_library(CRYPTO crypto HINTS "/usr/local/opt/openssl/lib")
 ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
-include_directories("${ERIZO_SOURCE_DIR}" "${THIRD_PARTY_INCLUDE}")
+include_directories(${THIRD_PARTY_INCLUDE})
 
 file(GLOB_RECURSE ERIZO_SOURCES "${ERIZO_SOURCE_DIR}/*.h" "${ERIZO_SOURCE_DIR}/*.c" "${ERIZO_SOURCE_DIR}/*.cpp" "${ERIZO_SOURCE_DIR}/*.cc")
 
