@@ -17,6 +17,10 @@ app.get('/', function (req, res) {
   res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/test', function (req, res) {
+  res.sendFile(__dirname + '/test.html');
+});
+
 app.get('/admin.js', function(req, res) {
   res.sendFile(__dirname + '/client/src/admin.js');
 });

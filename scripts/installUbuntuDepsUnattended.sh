@@ -184,7 +184,7 @@ parse_arguments $*
 
 mkdir -p $PREFIX_DIR
 
-install_apt_deps
+# install_apt_deps
 check_proxy
 install_openssl
 install_libnice

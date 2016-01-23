@@ -11,6 +11,7 @@ exports.ErizoJSController = function (spec) {
     "use strict";
 
     var that = {},
+        metadata = {},
         // {id: {subsId1: wrtc1, subsId2: wrtc2}}
         subscribers = {},
         // {id: {muxer: OneToManyProcessor, wrtc: WebRtcConnection}
@@ -385,6 +386,16 @@ exports.ErizoJSController = function (spec) {
         } else {
             log.info("Publisher already set for", from);
         }
+    };
+
+
+    that.addPublisherMetadata = function(data, callback) {
+        metadata = data;
+        callback(true);
+    };
+
+    that.getPublisherMetadata = function(callback) {
+        callback(metadata);
     };
 
     /*

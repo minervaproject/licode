@@ -20,6 +20,8 @@ include_directories(${ERIZO_SOURCE_DIR})
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-stack-protector")
   include_directories("/usr/local/opt/openssl/include")
+  # include_directories("/usr/local/opt/boost149/include")
+  include_directories("/usr/local/opt/boost155/include")
   find_library(SSL ssl HINTS "/usr/local/opt/openssl/lib")
   find_library(CRYPTO crypto HINTS "/usr/local/opt/openssl/lib")
 ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -39,6 +41,27 @@ target_link_libraries(erizo ${GLIB_LIBRARIES})
 set (BOOST_LIBS thread regex system)
 find_package(Boost COMPONENTS ${BOOST_LIBS} REQUIRED)
 target_link_libraries(erizo ${Boost_LIBRARIES})
+
+# set(BOOST_ROOT "/usr/local/opt/boost149")
+# set(BOOST_INCLUDEDIR "/usr/local/opt/boost149/include")
+# set(BOOST_LIBRARYDIR  "/usr/local/opt/boost149/lib")
+
+# set(BOOST_ROOT "/usr/local/opt/boost155")
+# set(BOOST_INCLUDEDIR "/usr/local/opt/boost155/include")
+# set(BOOST_LIBRARYDIR  "/usr/local/opt/boost155/lib")
+
+# find_library(BOOST_SYSTEM boost_system-mt HINTS "${BOOST_LIBRARYDIR}")
+# find_library(BOOST_THREAD boost_thread-mt HINTS "${BOOST_LIBRARYDIR}")
+# find_library(BOOST_REGEX boost_regex-mt HINTS "${BOOST_LIBRARYDIR}")
+
+# test_lib(${BOOST_THREAD})
+# test_lib(${BOOST_SYSTEM})
+# test_lib(${BOOST_REGEX})
+
+# target_link_libraries(erizo ${BOOST_THREAD})
+# target_link_libraries(erizo ${BOOST_SYSTEM})
+# target_link_libraries(erizo ${BOOST_REGEX})
+
 
 # GTHREAD
 find_library(GTHREAD gthread-2.0 HINTS "${THIRD_PARTY_LIB}")

@@ -205,7 +205,7 @@ var api = {
             fillErizos();
 
         } catch (error) {
-            console.log("Error in ErizoAgent:", error);
+            log.error("Error in ErizoAgent:", error);
         }
     },
     deleteErizoJS: function(id, callback) {

@@ -35,5 +35,5 @@ cp $ROOT/nuve/nuveClient/dist/nuve.js $EXTRAS/basic_example/
 cd $ROOT
 ./scripts/initBasicExample.sh
 
-cd $ROOT/admin
-node admin.js &
+# cd $ROOT/admin
+# node admin.js &

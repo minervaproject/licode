@@ -78,98 +78,9 @@ exports.RoomController = function (spec) {
         
     };
 
-/*  Prototype method to add a branch to a erizo Tree
-    var shouldAddSurrogate = function(publisher_id, subscriber_id, options, callback){
-        //Create new erizoJS, assign it as surrogate of publisher_id (subscribe), return id
-        log.info("Adding a surrogate");
-        getErizoJS(function(id){
-            log.info("got a new Erizo with id", id);
-            
-//            log.info("Adding subscriber ", id, ' to publisher ', publisher_id);
-            var options = {};
-            if (options.audio === undefined) options.audio = true;
-            if (options.video === undefined) options.video = true;
 
-            
-            var argsAddPub = [publisher_id, 300, true];
-            log.info("Adding publisher to surrogate", "ErizoJS_"+id, "args",argsAddPub);
-            var statusBranch = false;
-            var statusRoot = false;
-            var branchQueue = [];
-            var rootQueue = [];
-            log.info("calling addPublisher on branch");
-            amqper.callRpc("ErizoJS_"+id, "addPublisher", argsAddPub, {callback: function(msg){
-                log.info("Message from branch", msg.type);
-                if (msg.type==='started'){
-                    statusbranch = 'started';
-                    log.info("branch Started");
-                    if (branchQueue.length){
-                        while (branchQueue.length>0){
-                            var themessage = branchQueue.shift();
-                            var argus = [publisher_id, undefined, themessage];
-                            console.log("Queued msg from Erizoroot, sending to Erizobranch", argus);
-                            amqper.callRpc("ErizoJS_"+id, "processSignaling", argus, {});
-                        }
+    /* instance methods */
 
-                    }
-
-                }else if (msg.type === 'offer' || msg.type ==='candidate'){
-                    var argsSignaling = [publisher_id, id, msg];
-                    console.log("msg from Erizobranch, should to Erizoroot?");
-                    if (statusroot){
-                        console.log("Yes, sending", argsSignaling);
-                        amqper.callRpc(getErizoQueue(publisher_id, id), "processSignaling", argsSignaling, {});
-                    }else{
-                        console.log("No, queuing", argsSignaling);
-                        rootQueue.push(msg);
-                    }
-                }else if (msg.type === 'ready'){
-                    log.info("Surrogate ready, firing after a second");
-                    setTimeout (callback(id), 1000);
-                }
-                
-            }});
-
-            log.info("calling addSubscriber on root");
-            var argsAddSub = [id, publisher_id, options];
-            amqper.callRpc(getErizoQueue(publisher_id), "addSubscriber", argsAddSub, {callback: function(mess){
-                log.info("Message from root", mess.type);
-                if (mess.type==='started'){
-                    statusroot = 'started';
-                    log.info("root Started");
-                    if (rootQueue.length){
-                        while (rootQueue.length>0){
-                            var themessage = rootQueue.shift();
-                            var argsSignaling = [publisher_id, id, themessage];
-                            console.log("Queued msg from Erizobranch, sending to Erizoroot", argsSignaling);
-                            amqper.callRpc(getErizoQueue(publisher_id, id), "processSignaling", argsSignaling, {});
-                        }
-
-                    }
-
-                }else if (mess.type === 'answer' || mess.type ==='candidate'){
-                    if (mess.type === 'answer'){
-                        mess.type = 'offer';
-                    }
-                    var argus = [publisher_id, subscriber_id, mess];
-
-                    console.log("signalling from Erizoroot, should send to branch?");
-                    if (statusbranch){
-                        console.log("Yes, sending", argus);
-                        amqper.callRpc("ErizoJS_"+id, "processSignaling", argus, {});
-                    }else{
-                        console.log("No, queuing", argus);
-                        branchQueue.push(mess);
-                    }
-                }
-            }});
-            subscribers[publisher_id].push({id:subscriber_id, surrogate_id:id});
-            // Track subscriber locally
-
-        });
-
-    }
-*/
     that.addEventListener = function(eventListener) {
         eventListeners.push(eventListener);
     };
@@ -241,7 +152,7 @@ exports.RoomController = function (spec) {
 
         if (publishers[streamId] !== undefined) {
 
-//            log.info("Sending signaling mess to erizoJS of st ", streamId, ' of peer ', peerId);
+            // log.info("Sending signaling mess to erizoJS of st ", streamId, ' of peer ', peerId);
 
             var args = [streamId, peerId, msg];
 
@@ -276,8 +187,12 @@ exports.RoomController = function (spec) {
                 
                 // then we call its addPublisher method.
                 var args = [publisher_id, options.minVideoBW, false];
+                
                 //TODO: Possible race condition if we got an old id
                 amqper.callRpc(getErizoQueue(publisher_id), "addPublisher", args, {callback: callback});
+                // amqper.callRpc(getErizoQueue(publisher_id), "addPublisherMetadata", [options], {callback: function() {
+                //     log.info("Passed publisher metadata over to erizoJS ", publisher_id);
+                // }});
 
                 erizos[erizo_id].publishers.push(publisher_id);
             });
@@ -300,33 +215,13 @@ exports.RoomController = function (spec) {
 
         if (publishers[publisher_id] !== undefined && subscribers[publisher_id].indexOf(subscriber_id) === -1) {
             log.info("Adding subscriber ", subscriber_id, ' to publisher ', publisher_id);
+            if (options.audio === undefined) options.audio = true;
+            if (options.video === undefined) options.video = true;
 
-//            if (true){
+            var args = [subscriber_id, publisher_id, options];
 
-                if (options.audio === undefined) options.audio = true;
-                if (options.video === undefined) options.video = true;
-
-                var args = [subscriber_id, publisher_id, options];
-
-                subscribers[publisher_id].push({id:subscriber_id});
-                amqper.callRpc(getErizoQueue(publisher_id, undefined), "addSubscriber", args, {callback: callback});
-/*            }else{ // Prototype for erizo_trees
-                shouldAddSurrogate (publisher_id, subscriber_id, options, function(new_id){
-                    log.info("Surrogate ?", new_id);
-
-                    if (options.audio === undefined) options.audio = true;
-                    if (options.video === undefined) options.video = true;
-
-                    var args = [subscriber_id, publisher_id, options];
-
-                    subscribers[publisher_id].push({id:subscriber_id, surrogate:new_id});
-                    amqper.callRpc(getErizoQueue(publisher_id, subscriber_id), "addSubscriber", args, {callback: callback});
-                    // Track subscriber locally
-                });
-                
-
-            }
-            */
+            subscribers[publisher_id].push({id:subscriber_id});
+            amqper.callRpc(getErizoQueue(publisher_id, undefined), "addSubscriber", args, {callback: callback});
         }
     };
 

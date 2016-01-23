@@ -10,7 +10,9 @@ LIB_DIR=$BUILD_DIR/libdeps
 PREFIX_DIR=$LIB_DIR/build/
 
 pause() {
-  read -p "$*"
+  # read -p "$*"
+  echo $*
+  sleep 1
 }
 
 parse_arguments(){
@@ -124,8 +126,8 @@ install_homebrew
 pause "Installing deps via homebrew... [press Enter]"
 install_brew_deps
 
-pause 'Installing openssl... [press Enter]'
-install_openssl
+# pause 'Installing openssl... [press Enter]'
+# install_openssl
 
 pause 'Installing libnice... [press Enter]'
 install_libnice
