@@ -17,7 +17,6 @@ define(['react', 'jsx!components/charts'], function (React, MovingLineChart) {
         if (!that.props.stats) {
           return null;
         }
-        console.log('got here')
 
         return (
           <div className="panel-body" key={that.props.key + "-stats"}>

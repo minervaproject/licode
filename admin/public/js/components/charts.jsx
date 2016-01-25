@@ -30,10 +30,11 @@ define(['d3', 'react'], function(d3, React) {
         ydomain: [0, 100],
         xdomain: [1, 300], 
         interpolation: "basis",
-        width: 450,
+        width: 400,
         y_width: 50,
         height: 90,
-        value: 0
+        value: 0,
+        animationRate: 40
       }
     },
 
@@ -91,7 +92,7 @@ define(['d3', 'react'], function(d3, React) {
       // redraw the line, and then slide it to the left
       d3.select(that.refs.path)
         .transition()
-        .duration(100)
+        .duration(that.props.animationRate)
         .ease("linear")
         .attr("transform", "translate(" + that.x(0) + ")")
         .each("end", function() { that.updateGraphData(); });

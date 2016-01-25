@@ -2,6 +2,7 @@
   padding-left:20px;
   padding-right:20px;
   margin-top:0px;
+  margin-bottom:0px;
   padding-top:30px;
   border-bottom-color:#ddd;
   background-color:#eee;
@@ -22,7 +23,7 @@
 }
 
 .erizo_list {
-  margin-right:600px;
+  margin-right:540px;
   padding:20px;
 
 }

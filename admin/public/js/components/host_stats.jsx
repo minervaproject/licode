@@ -30,9 +30,13 @@ define(['pubsub', 'react', 'jsx!components/charts'], function (PubSub, React, Mo
     render: function() {
       return (
         <div className="host_stats">
-          <h4>Host Stats</h4>
-          <MovingLineChart title="cpu" value={this.state.cpu} />
-          <MovingLineChart title="mem" value={this.state.mem} />
+          <div className="panel panel-default">
+            <div className="panel-heading"><h3 className="panel-title">Host Stats</h3></div>
+            <div className="panel-body">
+              <MovingLineChart title="cpu" value={this.state.cpu} />
+              <MovingLineChart title="mem" value={this.state.mem} />
+            </div>
+          </div>
         </div>
       );
     }
