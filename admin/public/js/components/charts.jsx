@@ -1,18 +1,13 @@
 define(['d3', 'react'], function(d3, React) {
 
-  var margin = {top: 5, right: 0, bottom: 5, left: 100},
-    width = 450 - margin.right,
-    height = 90 - margin.top - margin.bottom;
-
-
   return React.createClass({
     displayName: 'MovingLineChart',
 
     getInitialState: function() {
 
       var that = this;
-      this.x = d3.scale.linear().domain(this.props.xdomain).range([0, width]);
-      this.y = d3.scale.linear().domain(this.props.ydomain).range([height, 0]);
+      this.x = d3.scale.linear().domain(this.props.xdomain).range([0, this.props.width]);
+      this.y = d3.scale.linear().domain(this.props.ydomain).range([this.props.height, 0]);
       this.line = d3.svg.line()
         .interpolate(this.props.interpolation)
         .x(function(d, i) { return that.x(i); })
@@ -34,7 +29,10 @@ define(['d3', 'react'], function(d3, React) {
         title: "Chart", 
         ydomain: [0, 100],
         xdomain: [1, 300], 
-        interpolation: "basis", 
+        interpolation: "basis",
+        width: 450,
+        y_width: 50,
+        height: 90,
         value: 0
       }
     },
@@ -42,21 +40,32 @@ define(['d3', 'react'], function(d3, React) {
     render: function() {
 
       return (
-        <table cellPadding="0" cellSpacing="0"><tbody><tr>
-          <td className="header">{this.props.title}</td>
-          <td className="graph">
-            <svg width={width + margin.left + margin.right} height={height + margin.top + margin.bottom} style={{"marginLeft": (0-margin.left)+"px"}}>
-              <g transform={ "translate("+margin.left+","+margin.top+")" }>
-                <defs><clipPath id="clip"><rect width={width} height={height}></rect></clipPath></defs>
-                <g className="y_axis" ref="y_axis"></g>
-                <g clipPath="url(#clip)"><path ref="path" className="line" d={this.state.lineData} transform=""></path></g>
-              </g>
-            </svg>
-          </td>
-          <td>{this.props.value}</td>
-          <td>{this.state.minVal}</td>
-          <td>{this.state.maxVal}</td>
-        </tr></tbody></table>
+        <table cellPadding="0" cellSpacing="0" className="graph">
+        <tbody>
+          <tr>
+            <td className="header title">
+              <span className="label label-default">{this.props.title}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <svg width={this.props.width} height={this.props.height}>
+                <g>
+                  <defs><clipPath id="clip"><rect x={this.props.y_width} width={this.props.width-this.props.y_width} height={this.props.height}></rect></clipPath></defs>
+                  <g clipPath="url(#clip)"><path ref="path" className="line" d={this.state.lineData} transform=""></path></g>
+                  <g className="y_axis" ref="y_axis" transform={ "translate("+this.props.y_width+",0)" }></g>
+                </g>
+              </svg>
+            </td>
+            <td className="values">
+              <div><span className="label label-primary">Current</span><span className="label label-primary">{this.props.value}</span></div>
+              <div><span className="label label-info">Min</span><span className="label label-info">{this.state.minVal}</span></div>
+              <div><span className="label label-info">Max</span><span className="label label-info">{this.state.maxVal}</span></div>
+            </td>
+
+          </tr>
+        </tbody>
+        </table>
       );
     },
 

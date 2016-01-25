@@ -1,47 +1,37 @@
-define(['react', 'pubsub'], function (React, PubSub) {
+define(['pubsub', 'react', 'jsx!components/erizo_publisher'], function (PubSub, React, ErizoPublisher) {
 
   return React.createClass({
     displayName: 'ErizoItem',
     
     getInitialState: function() {
       return {
-        publisherMetadata: {}  
+        publisherMetadata: {}
       };
     },
 
     render: function() {
       var that = this;
 
-      return <li key={this.props.item.id}>
-        <div>
-          <div>{this.props.item.id}</div>
-          <div>{this.props.item.idle ? "idle" : "busy"}</div>
-          <div>{this.props.item.pid}</div>
-          <ul>
-          {
-            Object.keys(that.state.publisherMetadata).map(function(p) {
-              var d = that.state.publisherMetadata[p];
+      var createItem = function(key) {
+        return (
+            <ErizoPublisher item={that.state.publisherMetadata[key]} key={that.props.item.id + "-" + key} pub={key} stats={that.props.stats[key]}/>
+        );
+      };
 
-              return (
-                <li key={that.props.item.id + "-" + p}>
-                <div>{p}</div>
-                  <ul>
-                  <li>{JSON.stringify(that.props.stats[p]) || "Statistics Disabled"}</li>
-                  {
-                    Object.keys(d).map(function(k) {
-                      var v = d[k];
-                      return <li key={that.props.item.id + "-" + p + "-" + k}>{k} - {JSON.stringify(v)}</li>
-                    })
-                  }
-                  </ul>
-                </li>
-              );
-            })
-          }
-          </ul>
+      return (
+        <div className="erizo_item panel panel-primary">
+            <div className="panel-heading">
+              <div>ErizoJS_{this.props.item.id}</div>
+              <div><span className="label label-default">PID</span><span className="label label-info">{this.props.item.pid}</span></div>
+              <div><span className="label label-default">State</span><span className={"label label-" + (this.props.item.idle ? "default" : "success")}>{this.props.item.idle ? "idle" : "busy"}</span></div>
+            </div>
+            { (Object.keys(that.state.publisherMetadata).length == 0 ? "" : (
+              <div className="panel-body">
+                { Object.keys(that.state.publisherMetadata).map(createItem) }
+              </div>
+            )) }
         </div>
-      </li>;
-
+      );
     },
     
     updatePublisherMetadata: function() {
@@ -60,6 +50,7 @@ define(['react', 'pubsub'], function (React, PubSub) {
         that.updatePublisherMetadata();
       }, 2000);
     },
+    
     componentWillUnmount: function() {
       if (this.interval) {
         clearInterval(this.interval);
