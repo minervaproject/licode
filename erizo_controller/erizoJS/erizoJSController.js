@@ -176,6 +176,7 @@ exports.ErizoJSController = function (spec) {
                 if (GLOBAL.config.erizoController.report.rtcp_stats) {
                     wrtc.getStats(function (newStats){
                         var timeStamp = new Date();
+                        console.log("broadcasting stats:", id_pub, theStats);
                         amqper.broadcast('stats', {pub: id_pub, subs: id_sub, stats: theStats, timestamp:timeStamp.getTime()});
                     });
                 }
@@ -389,13 +390,13 @@ exports.ErizoJSController = function (spec) {
     };
 
 
-    that.addPublisherMetadata = function(data, callback) {
-        metadata = data;
-        callback(true);
+    that.addPublisherMetadata = function(from, data, callback) {
+        metadata[from] = data;
+        callback('callback', true);
     };
 
     that.getPublisherMetadata = function(callback) {
-        callback(metadata);
+        callback('callback', metadata);
     };
 
     /*

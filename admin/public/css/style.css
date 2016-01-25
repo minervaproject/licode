@@ -1,0 +1,28 @@
+.x.axis line {
+  shape-rendering: auto;
+}
+
+.line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+table {
+  margin-top:10px;
+  margin-bottom:10px;
+}
+td {
+  padding:0px;
+  padding-top:10px;
+  margin-top:10px;
+  width: 60px;
+  text-align:center;
+}
+td.header {
+  width: 90px;
+  text-align:left;
+}   
+
+#graphHolder svg {
+  overflow: visible;
+}

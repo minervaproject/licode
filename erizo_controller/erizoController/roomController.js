@@ -190,9 +190,9 @@ exports.RoomController = function (spec) {
                 
                 //TODO: Possible race condition if we got an old id
                 amqper.callRpc(getErizoQueue(publisher_id), "addPublisher", args, {callback: callback});
-                // amqper.callRpc(getErizoQueue(publisher_id), "addPublisherMetadata", [options], {callback: function() {
-                //     log.info("Passed publisher metadata over to erizoJS ", publisher_id);
-                // }});
+                amqper.callRpc(getErizoQueue(publisher_id), "addPublisherMetadata", [publisher_id, options], {callback: function() {
+                    log.info("Passed publisher metadata over to erizoJS ", publisher_id, options);
+                }});
 
                 erizos[erizo_id].publishers.push(publisher_id);
             });

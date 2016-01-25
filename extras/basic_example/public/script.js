@@ -30,7 +30,7 @@ function startRecording () {
 window.onload = function () {
   recording = false;
   var screen = getParameterByName("screen");
-  var config = {audio: true, video: true, data: true, screen: screen, videoSize: [640, 480, 640, 480]};
+  var config = {audio: true, video: true, data: true, screen: screen, videoSize: [640, 480, 640, 480], attributes: {user: "gene", class: 1234}};
   // If we want screen sharing we have to put our Chrome extension id. The default one only works in our Lynckia test servers.
   // If we are not using chrome, the creation of the stream will fail regardless.
   if (screen){

@@ -1,0 +1,14 @@
+{
+  "name": "admin",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "requirejs-react-jsx": "~1.0.2"
+  }
+}
