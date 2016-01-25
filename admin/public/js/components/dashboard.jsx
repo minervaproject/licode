@@ -7,7 +7,7 @@ define(['pubsub', 'jsx!components/charts', 'react', 'jsx!components/erizo_list']
     displayName: 'Dashboard',
     
     getInitialState: function() {
-      return { cpu:0, mem:0, erizos:[], stats: {} }
+      return { cpu:0, mem:0, erizos:[], stats: {}, showStats: false }
     },
     
     updateLicodeData: function() {
@@ -18,8 +18,6 @@ define(['pubsub', 'jsx!components/charts', 'react', 'jsx!components/erizo_list']
           cpu: Math.ceil(resp.stats.perc_cpu*100),
           mem: Math.ceil(resp.stats.perc_mem*100)
         });
-        // latest.cpu = Math.ceil(resp.stats.perc_cpu*100);//100;
-        // latest.mem = Math.ceil(resp.stats.perc_mem*100);//100;
       });
       PubSub.broadcast("ErizoAgent.getErizoJSInfo", null, function(resp) {
         that.setState({erizos: resp.erizos});
@@ -32,15 +30,16 @@ define(['pubsub', 'jsx!components/charts', 'react', 'jsx!components/erizo_list']
       var that = this;
       this.updateLicodeData();
       
-      // PubSub.subscribe('stats', function(stat) {
-      //   var stats = that.state.stats;
-      //   stats[stat.pub] = stat;
-      //   // console.log('got hhhheeeeee', resp);
-      //   that.setState({stats: stats});
-      // });
+      PubSub.subscribe('stats', function(stat) {
+        var stats = that.state.stats;
+        stats[stat.pub] = stat;
+        that.setState({stats: stats});
+      });
     },
     
+
     render: function() {
+      var that = this;
       return (
         <div>
           <h3>Licode Admin</h3>
@@ -48,8 +47,10 @@ define(['pubsub', 'jsx!components/charts', 'react', 'jsx!components/erizo_list']
             <MovingLineChart title="cpu" value={this.state.cpu} />
             <MovingLineChart title="mem" value={this.state.mem} />
           </div>
+          <input id="showStats" type="checkbox" checkedLink={{ value: this.state.showStats, requestChange: function(val) { that.setState({showStats: val});} }} />
+          <label htmlFor="showStats">Show Rtcp Stats</label>
           <div id="erizoJSInfo">
-            <ErizoList ref="erizo_list" erizos={this.state.erizos} stats={this.state.stats}/>
+            <ErizoList ref="erizo_list" erizos={this.state.erizos} stats={ this.state.showStats ? this.state.stats : {} }/>
           </div>
         </div>
       );

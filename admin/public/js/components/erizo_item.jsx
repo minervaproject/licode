@@ -48,16 +48,23 @@ define(['react', 'pubsub'], function (React, PubSub) {
       var that = this;
 
       PubSub.call("ErizoJS_"+ this.props.item.id + ".getPublisherMetadata", null, function(resp) {
-        that.setState({publisherMetadata: resp});
+        if (that.isMounted()) {
+          that.setState({publisherMetadata: resp});
+        }
       });
     },
 
     componentDidMount: function() {
       var that = this;
-      setInterval(function() {
+      this.interval = setInterval(function() {
         that.updatePublisherMetadata();
       }, 2000);
     },
+    componentWillUnmount: function() {
+      if (this.interval) {
+        clearInterval(this.interval);
+      }
+    }
 
   });
 
