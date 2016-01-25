@@ -85,7 +85,7 @@ Erizo.Stream = function (spec) {
           } else if (spec.screen == true && videoOpt === undefined){
             videoOpt = true;
           }
-          var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake, screen: spec.screen, extensionId:that.extensionId};
+          var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake, screen: spec.screen, extensionId:that.extensionId, attributes: spec.attributes};
           L.Logger.debug(opt);
           Erizo.GetUserMedia(opt, function (stream) {
             //navigator.webkitGetUserMedia("audio, video", function (stream) {
