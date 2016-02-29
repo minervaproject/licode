@@ -124,7 +124,9 @@ Erizo.Stream = function (spec) {
             that.dispatchEvent(streamEvent);
           }
           } catch (e) {
-            L.Logger.error("Error accessing to local media", e);
+            L.Logger.error("Failed to get access to local media. Error was " + e + ".");
+            var streamEvent = Erizo.StreamEvent({type: "access-denied"});
+            that.dispatchEvent(streamEvent);
           }
       };
 
@@ -137,7 +139,9 @@ Erizo.Stream = function (spec) {
             // Remove HTML element
             that.hide();
             if (that.stream !== undefined) {
-                that.stream.stop();
+                that.stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
             }
             that.stream = undefined;
         }
@@ -233,7 +237,7 @@ Erizo.Stream = function (spec) {
         if (that.pc){
             that.pc.updateSpec(config, callback);
         } else {
-            return ("This stream has not been published, ignoring");
+            return ("This stream has no peerConnection attached, ignoring");
         }
     }
 

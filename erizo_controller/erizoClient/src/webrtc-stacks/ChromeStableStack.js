@@ -21,16 +21,8 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
 
-    if (spec.stunServerUrl !== undefined) {
-        that.pc_config.iceServers.push({"url": spec.stunServerUrl});
-    }
-
-    if ((spec.turnServer || {}).url) {
-        that.pc_config.iceServers.push({
-            "username": spec.turnServer.username,
-            "credential": spec.turnServer.password,
-            "url": spec.turnServer.url
-        });
+    if (spec.iceServers !== undefined) {
+        that.pc_config.iceServers = spec.iceServers;
     }
 
     if (spec.audio === undefined) {
@@ -270,9 +262,10 @@ Erizo.ChromeStableStack = function (spec) {
                 callback('error');
             });
         }
-        if (config.minVideoBW){
+        if (config.minVideoBW || (config.slideShowMode!==undefined)){
             L.Logger.debug ("MinVideo Changed to ", config.minVideoBW);
-            spec.callback({type:'updatestream', minVideoBW: config.minVideoBW});
+            L.Logger.debug ("SlideShowMode Changed to ", config.slideShowMode);
+            spec.callback({type:'updatestream', config:config});
         }
     };
 

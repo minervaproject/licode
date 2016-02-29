@@ -43,8 +43,20 @@ config.nuve.cloudHandlerPolicy = 'default_policy.js'; // default value: 'default
 **********************************************************/
 config.erizoController = {};
 
-//Use undefined to run clients without Stun
-config.erizoController.stunServerUrl = 'stun:stun.l.google.com:19302'; // default value: 'stun:stun.l.google.com:19302'
+// Use undefined to run clients without Ice Servers
+//
+// Stun servers format
+// {
+//     "url": url
+// }
+//
+// Turn servers format
+// {
+//     "username": username,
+//     "credential": password,
+//     "url": url
+// }
+config.erizoController.iceServers = [{'url': 'stun:stun.l.google.com:19302'}]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
 
 // Default and max video bandwidth parameters to be used by clients
 config.erizoController.defaultVideoBW = 300; //default value: 300

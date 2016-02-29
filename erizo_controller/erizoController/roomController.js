@@ -193,8 +193,8 @@ exports.RoomController = function (spec) {
     	        var args = [publisher_id, url];
 
                 // Track publisher locally
-                publishers[publisher_id] = {};
-                publishers[publisher_id].main = erizo_id;
+//                publishers[publisher_id] = {};
+                publishers[publisher_id] = erizo_id;
                 subscribers[publisher_id] = [];
 
                 amqper.callRpc(getErizoQueue(publisher_id), "addExternalInput", args, {callback: callback});
@@ -277,13 +277,13 @@ exports.RoomController = function (spec) {
                     callback('timeout');
                     return;
                 }
-            	log.info("Erizo got", erizo_id);
+            	log.info("Got Erizo to publish in", erizo_id);
                 // Track publisher locally
                 publishers[publisher_id] = erizo_id;
                 subscribers[publisher_id] = [];
 
                 // then we call its addPublisher method.
-                var args = [publisher_id, options.minVideoBW, false];
+                var args = [publisher_id, options];
                 //TODO: Possible race condition if we got an old id
                 amqper.callRpc(getErizoQueue(publisher_id), "addPublisher", args, {callback: callback});
 
@@ -307,7 +307,8 @@ exports.RoomController = function (spec) {
         }
 
         if (publishers[publisher_id] !== undefined && subscribers[publisher_id].indexOf(subscriber_id) === -1) {
-            log.info("Adding subscriber ", subscriber_id, ' to publisher ', publisher_id);
+            log.info("Adding subscriber ", subscriber_id, ' to publisher ', publisher_id, "options", options);
+            
 
 //            if (true){
 
@@ -316,7 +317,7 @@ exports.RoomController = function (spec) {
 
                 var args = [subscriber_id, publisher_id, options];
 
-                subscribers[publisher_id].push({id:subscriber_id});
+                subscribers[publisher_id].push(subscriber_id);
                 amqper.callRpc(getErizoQueue(publisher_id, undefined), "addSubscriber", args, {callback: callback});
 /*            }else{ // Prototype for erizo_trees
                 shouldAddSurrogate (publisher_id, subscriber_id, options, function(new_id){
