@@ -185,11 +185,13 @@ exports.ErizoJSController = function (spec) {
             if (!wrtcPub.periodicPlis){
                 wrtcPub.periodicPlis = setInterval(function (){
                     wrtcPub.generatePLIPacket();
-                }, 5000);
+                }, 1000);
             }
         }else{
             theWrtc.setSlideShowMode(false);
             theWrtc.slideShowMode = false;
+            var wrtcPub = publishers[to].wrtc;
+            wrtcPub.generatePLIPacket();
             if (publishers[to].wrtc.periodicPlis!==undefined){
                 for (var i in subscribers[to]){
                     if(subscribers[to][i].slideShowMode === true){
@@ -527,9 +529,10 @@ exports.ErizoJSController = function (spec) {
                     return;
                 }
             }
-            log.debug("Clearing Pli interval as no more slideshows subscribers are present");
-            clearInterval(publishers[to].wrtc.periodicPlis);
-            publishers[to].wrtc.periodicPlis = undefined;
+
+            // log.debug("Clearing Pli interval as no more slideshows subscribers are present");
+            // clearInterval(publishers[to].wrtc.periodicPlis);
+            // publishers[to].wrtc.periodicPlis = undefined;
         }
     };
 
