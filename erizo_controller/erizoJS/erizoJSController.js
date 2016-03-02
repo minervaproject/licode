@@ -185,7 +185,7 @@ exports.ErizoJSController = function (spec) {
             if (!wrtcPub.periodicPlis){
                 wrtcPub.periodicPlis = setInterval(function (){
                     wrtcPub.generatePLIPacket();
-                }, 1000);
+                }, 2000);
             }
         }else{
             theWrtc.setSlideShowMode(false);
