@@ -1,7 +1,15 @@
-var config = {};
+var merge = function(objA, objB) {
+  for (key in objA) {
+    if (typeof(objA[key]) == "object") {
+      objA[key] = merge(objA[key], objB[key] || {});
+    } else {
+      objA[key] = objB[key] == undefined ? objA[key] : objB[key];
+    }
+  }
+  return objA;
+};
 
-/* Read up host-specic network configuration */
-var host_config = require("./licode_config/host");
+var config = {};
 
 /*********************************************************
  COMMON CONFIGURATION
@@ -20,7 +28,7 @@ config.logger.config_file = '../log4js_configuration.json'; //default value: "..
  It's used by Nuve and ErizoController
 **********************************************************/
 config.cloudProvider = {};
-config.cloudProvider.name = host_config.cloudProviderName;
+config.cloudProvider.name = '';
 //In Amazon Ec2 instances you can specify the zone host. By default is 'ec2.us-east-1a.amazonaws.com'
 config.cloudProvider.host = '';
 config.cloudProvider.accessKey = '';
@@ -64,10 +72,10 @@ config.erizoController.maxVideoBW = 300; //default value: 300
 
 //Public erizoController IP for websockets (useful when behind NATs)
 //Use '' to automatically get IP from the interface
-config.erizoController.publicIP = host_config.publicIP;
+config.erizoController.publicIP = '';
 // This configuration is used by the clients to reach erizoController
 //Use '' to use the public IP address instead of a hostname
-config.erizoController.hostname = host_config.publicHostname;
+config.erizoController.hostname = '';
 config.erizoController.port = 443;
 //Use true if clients communicate with erizoController over SSL
 config.erizoController.ssl = true;
@@ -115,7 +123,7 @@ config.erizoAgent.prerunProcesses = 2; // default value: 1
 
 // Public erizoAgent IP for ICE candidates (useful when behind NATs)
 // Use '' to automatically get IP from the interface
-config.erizoAgent.publicIP = host_config.publicIP; //default value: ''
+config.erizoAgent.publicIP = '';
 // Use the name of the inferface you want to bind for ICE candidates
 // config.erizoAgent.networkInterface = 'eth1' // default value: undefined
 
@@ -140,8 +148,13 @@ config.erizo.turnusername = '';
 config.erizo.turnpass = '';
 
 //note, this won't work with all versions of libnice. With 0 all the available ports are used
-config.erizo.minport = host_config.minport;
-config.erizo.maxport = host_config.maxport;
+config.erizo.minport = 43000;
+config.erizo.maxport = 63999;
+
+
+/* Read up host-specic network configuration */
+var host_config = require("../licode_config/host");
+config = merge(config, host_config)
 
 /***** END *****/
 // Following lines are always needed.

@@ -24,7 +24,7 @@ populate_mongo(){
       mkdir -p "$DB_DIR"/db
     fi
     mongod --repair --dbpath $DB_DIR
-    mongod --dbpath $DB_DIR --logpath $BUILD_DIR/mongo.log --fork
+    mongod --dbpath $DB_DIR --logpath $BUILD_DIR/mongo.log --fork --smallfiles
     sleep 5
   else
     echo [licode] mongodb already running
