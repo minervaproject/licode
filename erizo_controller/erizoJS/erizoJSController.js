@@ -23,6 +23,7 @@ exports.ErizoJSController = function (spec) {
         INTERVAL_TIME_KILL = 30*60*1000, // Timeout to kill itself after a timeout since the publisher leaves room.
         INTERVAL_STATS = 1000,
         MIN_RECOVER_BW = 50000,
+        SLIDESHOW_TIME = 2000,
         initWebRtcConnection,
         getSdp,
         getRoap,
@@ -58,6 +59,7 @@ exports.ErizoJSController = function (spec) {
 
     monitorMinVideoBw = function(wrtc, callback){
         wrtc.bwValues = [];
+        var onlyNotifyBW= true; //TODO: For now we only notify, study if we want to enable the rest
         var isReporting = true;
         var ticks = 0;
         var retries = 0;
@@ -95,8 +97,10 @@ exports.ErizoJSController = function (spec) {
                     if(average <= lastAverage && (average < wrtc.lowerThres)){
                         if (++ticks > 2){
                             log.debug("STABLE STATE, Bandwidth is insufficient, moving to state BW_INSUFFICIENT", average, "lowerThres", wrtc.lowerThres);
-                            wrtc.bwStatus = BW_INSUFFICIENT;
-                            wrtc.setFeedbackReports(false, toRecover);
+                            if (!onlyNotifyBW){
+                                wrtc.bwStatus = BW_INSUFFICIENT;
+                                wrtc.setFeedbackReports(false, toRecover);
+                            }
                             ticks = 0;
                             callback('callback', {type:'bandwidthAlert', message:'insufficient', bandwidth: average});
                         }
@@ -182,12 +186,15 @@ exports.ErizoJSController = function (spec) {
             theWrtc.setSlideShowMode(true);
             theWrtc.slideShowMode = true;
             var wrtcPub = publishers[to].wrtc;
-            if (!wrtcPub.periodicPlis){
+            if (wrtcPub.periodicPlis===undefined){
                 wrtcPub.periodicPlis = setInterval(function (){
-                    wrtcPub.generatePLIPacket();
-                }, 2000);
+                    if(wrtcPub)
+                        wrtcPub.generatePLIPacket();
+                }, SLIDESHOW_TIME);
             }
         }else{
+            var wrtcPub = publishers[to].wrtc;
+            wrtcPub.generatePLIPacket();
             theWrtc.setSlideShowMode(false);
             theWrtc.slideShowMode = false;
             var wrtcPub = publishers[to].wrtc;
@@ -262,6 +269,9 @@ exports.ErizoJSController = function (spec) {
                     if (id_sub && options.browser === 'bowser') {
                         log.info('SENDING PLI from ', id_pub, ' to BOWSER ', id_sub);
                         publishers[id_pub].wrtc.generatePLIPacket();
+                    }
+                    if (options.slideShowMode == true){
+                        setSlideShow(true, id_sub, id_pub);
                     }
                     callback('callback', {type: 'ready'});
                     break;
@@ -465,10 +475,6 @@ exports.ErizoJSController = function (spec) {
             subscribers[to][from] = wrtc;
             publishers[to].muxer.addSubscriber(wrtc, from);
             wrtc.minVideoBW = publishers[to].minVideoBW;
-            if (options.slideShowMode === true){
-                setSlideShow(true, from, to);
-            }
-
             initWebRtcConnection(wrtc, callback, to, from, options);
         }
     };
@@ -480,15 +486,15 @@ exports.ErizoJSController = function (spec) {
 
         if (subscribers[from] !== undefined && publishers[from] !== undefined) {
             log.info('Removing muxer', from);
+            if(publishers[from].periodicPlis!==undefined){
+                log.debug("Clearing periodic PLIs for publisher");
+                clearInterval (publishers[from].periodicPlis);
+            }
             for (var key in subscribers[from]) {
                 if (subscribers[from].hasOwnProperty(key)){
                     log.info("Iterating and closing ", key,  subscribers[from], subscribers[from][key]);
                     subscribers[from][key].close();
                 }
-            }
-            if(publishers[from].periodicPlis!==undefined){
-                log.debug("Clearing periodic PLIs for publisher");
-                clearInterval (publishers[from].periodicPlis);
             }
             publishers[from].wrtc.close();
             publishers[from].muxer.close();
