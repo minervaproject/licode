@@ -329,25 +329,26 @@ namespace erizo {
             fec_receiver_.ProcessReceivedFec();
           }
         } else {
-
+//          slideShowMutex_.lock();
           if (slideShowMode_){
             RtpVP8Parser parser;
             RTPPayloadVP8* payload = parser.parseVP8(reinterpret_cast<unsigned char*>(buf + h->getHeaderLength()), len - h->getHeaderLength());
             if (!payload->frameType){ // Its a keyframe
               grace_=1;
             }
+            delete payload;
             if (grace_){ // We send until marker
               //              ELOG_DEBUG("Sending seqNo_: %u", seqNo_);
               this->queueData(0, buf, len, videoTransport_, VIDEO_PACKET, seqNo_++);
               if (h->getMarker()){
                 grace_=0;
               }              
-            }else{
-              seqNoOffset_++;
             }
+//            slideShowMutex_.unlock();
           } else {
+//            slideShowMutex_.unlock();
             if (seqNoOffset_>0){
-//              ELOG_DEBUG("Requesting rEwrite from %u with offset %u", sendSeqNo_, seqNoOffset_);
+              //ELOG_DEBUG("Requesting rEwrite from %u with offset %u", sendSeqNo_, seqNoOffset_);
               this->queueData(0, buf, len, videoTransport_, VIDEO_PACKET, (sendSeqNo_ - seqNoOffset_));
             }else{
               this->queueData(0, buf, len, videoTransport_, VIDEO_PACKET);
@@ -410,9 +411,8 @@ namespace erizo {
 
     // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
     if (chead->isFeedback()){
+//      slideShowMutex_.lock();
       if (fbSink_ != NULL && shouldSendFeedback_ && !slideShowMode_) {
-         
-        RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
         if (seqNoOffset_>0){
           char* movingBuf = buf;
           int rtcpLength = 0;
@@ -433,20 +433,12 @@ namespace erizo {
                   ELOG_DEBUG("The seqNo adjustment causes a wraparound, add to cycles");
                   chead->setSeqnumCycles(chead->getSeqnumCycles()+1);
                 }
-
-//                ELOG_DEBUG("Rewriting seqNum in RR, from %u to %u",chead->getHighestSeqnum(), chead->getHighestSeqnum()+seqNoOffset_);
                 chead->setHighestSeqnum(chead->getHighestSeqnum()+seqNoOffset_);
                
                 break;
               case RTCP_RTP_Feedback_PT:
-//                ELOG_DEBUG("I'll ignore Rewriting seqNum in NACK, from %u to %u, partNum %u", chead->getNackPid(), chead->getNackPid()+seqNoOffset_, partNum);
+//                ELOG_DEBUG("Rewriting seqNum in NACK, from %u to %u, partNum %u", chead->getNackPid(), chead->getNackPid()+seqNoOffset_, partNum);
                 chead->setNackPid(chead->getNackPid()+seqNoOffset_);
-                if (partNum >0)
-                  len = totalLength - rtcpLength; //Ignore NACKs
-                else{
-                  ELOG_DEBUG("Im not ignoring this NACK");
-                }
-//                chead->setNackBlp(0);
                 break;
               case RTCP_PS_Feedback_PT:
                 switch(chead->getBlockCount()){
@@ -469,8 +461,10 @@ namespace erizo {
             partNum++;
           } while (totalLength < len);
         }
-
+//        slideShowMutex_.unlock();
         fbSink_->deliverFeedback(buf,len);
+      } else {
+//        slideShowMutex_.unlock();
       }
     } else {
       // RTP or RTCP Sender Report
@@ -536,6 +530,24 @@ namespace erizo {
     }
     // check if we need to send FB || RR messages
     rtcpProcessor_->checkRtcpFb();      
+  }
+
+  uint32_t WebRtcConnection::stripRtpHeaders(char* buf, int len){
+    RtpHeader* head = reinterpret_cast<RtpHeader*>(buf);;
+    if (head->getExtension()){
+      if (head->getExtId()==0xBEDE && head->getExtLength() ==1){
+        uint16_t headerSize = RtpHeader::MIN_SIZE + head->getCc()*4;
+        uint16_t extensionSize = 4+ head->getExtLength()*4;
+        char payload[1500];
+        memcpy(payload, buf+headerSize+extensionSize, len-headerSize-extensionSize);
+        head->setExtension(0);
+        ELOG_DEBUG("Stripping extension copying %u in %u, size before %u, size after %d", headerSize+extensionSize, headerSize, len, len-extensionSize);
+        memcpy (buf+headerSize,payload, len-headerSize-extensionSize);
+        len = len - extensionSize;
+
+      }
+    }
+    return len;
   }
 
   int WebRtcConnection::sendPLI() {
@@ -702,6 +714,7 @@ namespace erizo {
     if (sendQueue_.size() < 1000) {
       dataPacket p_;
       memcpy(p_.data, buf, length);
+//      length = stripRtpHeaders(p_.data, length);
       p_.comp = comp;
 //      p_.type = (transport->mediaType == VIDEO_TYPE) ? VIDEO_PACKET : AUDIO_PACKET;
       p_.type = type;
@@ -721,6 +734,7 @@ namespace erizo {
   }
 
   void WebRtcConnection::setSlideShowMode (bool state){
+//    boost::mutex::scoped_lock lock(slideShowMutex_);
     ELOG_DEBUG("Setting SlideShowMode %u", state);
     if (slideShowMode_==state){
       return;
@@ -729,7 +743,10 @@ namespace erizo {
       seqNo_ = sendSeqNo_ - seqNoOffset_;
       grace_ = 0;
       slideShowMode_ = true;
+      ELOG_DEBUG("Setting seqNo %u", seqNo_);
     }else{
+      seqNoOffset_ = sendSeqNo_ - seqNo_ + 1;
+      ELOG_DEBUG("Changing offset manually, sendSeqNo %u, seqNo %u, offset %u", sendSeqNo_, seqNo_, seqNoOffset_);
       slideShowMode_ = false;
     }
   }
@@ -768,6 +785,7 @@ namespace erizo {
           }
 
           if (bundle_ || p.type == VIDEO_PACKET) {
+//            slideShowMutex_.lock();
             if (rateControl_ && !slideShowMode_){
               if (p.type == VIDEO_PACKET){
                 if (rateControl_ == 1)
@@ -786,6 +804,7 @@ namespace erizo {
                 sentVideoBytes+=p.length;
               }
             }
+//            slideShowMutex_.unlock();
 
               videoTransport_->write(p.data, p.length);
           } else {
