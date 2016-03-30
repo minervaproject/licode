@@ -46,7 +46,8 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.peerConnection = new WebkitRTCPeerConnection(that.pc_config, that.con);
 
-    var setMaxBW = function (sdp) {
+    var setMaxBW = function (sdp, maxVideoBW, maxAudioBW) {
+        console.log("Setting maxVideoBW", maxVideoBW, "maxAudioBW", maxAudioBW);
         var as = sdp.match(/b=AS:.*\r\n/g);
         if (as === null) {
           as = sdp.match(/b=AS:.*\n/g);
@@ -58,25 +59,25 @@ Erizo.ChromeStableStack = function (spec) {
           }
         }
 
-        if (spec.video && that.maxVideoBW) {
+        if (spec.video && maxVideoBW) {
 
             var a = sdp.match(/m=video.*\r\n/);
             if (a === null) {
                 a = sdp.match(/m=video.*\n/);
             }
             if (a) {
-                var r = a[0] + "b=AS:" + that.maxVideoBW + "\r\n";
+                var r = a[0] + "b=AS:" + maxVideoBW + "\r\n";
                 sdp = sdp.replace(a[0], r);
             }
         }
 
-        if (spec.audio && that.maxAudioBW) {
+        if (spec.audio && maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
             if (a === null) {
                 a = sdp.match(/m=audio.*\n/);
             }
             if (a) {
-                var r = a[0] + "b=AS:" + that.maxAudioBW + "\r\n";
+                var r = a[0] + "b=AS:" + maxAudioBW + "\r\n";
                 sdp = sdp.replace(a[0], r);
             }
         }
@@ -252,7 +253,7 @@ Erizo.ChromeStableStack = function (spec) {
 
             localDesc.sdp = setMaxBW(localDesc.sdp);
             that.peerConnection.setLocalDescription(localDesc, function () {
-                remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+                remoteDesc.sdp = setMaxBW(remoteDesc.sdp, spec.maxVideoBW, spec.maxAudioBW);
                 that.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc), function () {
                     spec.remoteDescriptionSet = true;
                     spec.callback({type:'updatestream', sdp: localDesc.sdp});
@@ -283,7 +284,7 @@ Erizo.ChromeStableStack = function (spec) {
          return;
        }
        var sessionDescription = localDesc;
-       sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+       sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
        sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
        that.peerConnection.setLocalDescription(sessionDescription, function() {
          var as = remoteDesc.sdp.match(/b=AS:.*\r\n/g);
@@ -295,7 +296,7 @@ Erizo.ChromeStableStack = function (spec) {
               remoteDesc.sdp = remoteDesc.sdp.replace(as[i], "");
            }
          }
-         remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+         remoteDesc.sdp = setMaxBW(remoteDesc.sdp, that.maxVideoBW, that.maxAudioBW);
          that.peerConnection.setRemoteDescription(remoteDesc);
        });
     };
@@ -323,7 +324,7 @@ Erizo.ChromeStableStack = function (spec) {
         //L.Logger.info("Process Signaling Message", msg);
 
         if (msg.type === 'offer') {
-            msg.sdp = setMaxBW(msg.sdp);
+            msg.sdp = setMaxBW(msg.sdp, spec.maxVideoBW, spec.maxAudioBW);
             msg.sdp = setAudioCodec(sessionDescription.sdp);
             that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function () {
                 that.peerConnection.createAnswer(setLocalDescp2p, function (error) {
@@ -345,7 +346,7 @@ Erizo.ChromeStableStack = function (spec) {
 
             console.log("Set remote and local description", msg.sdp);
 
-            msg.sdp = setMaxBW(msg.sdp);
+            msg.sdp = setMaxBW(msg.sdp, spec.maxVideoBW, spec.maxAudioBW);
             msg.sdp = setAudioCodec(msg.sdp);
 
             remoteDesc = new RTCSessionDescription(msg);
