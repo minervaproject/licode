@@ -431,7 +431,6 @@ exports.ErizoJSController = function (spec) {
                 wrtc = new addon.WebRtcConnection(true, true, GLOBAL.config.erizo.stunserver, GLOBAL.config.erizo.stunport, GLOBAL.config.erizo.minport, GLOBAL.config.erizo.maxport,false,
                         GLOBAL.config.erizo.turnserver, GLOBAL.config.erizo.turnport, GLOBAL.config.erizo.turnusername, GLOBAL.config.erizo.turnpass);
 
-            publishers[from + "-wrtc"] = wrtc;
             publishers[from] = {muxer: muxer, wrtc: wrtc, minVideoBW: options.minVideoBW};
             subscribers[from] = {};
 
@@ -447,9 +446,9 @@ exports.ErizoJSController = function (spec) {
     };
 
     that.renegotiate = function (from, sdp, callback, onReady) {
-        console.log("[webrtcController] renegotiate");
+        log.debug("[webrtcController] renegotiate");
         var wrtc, roap, remoteSdp, localSdp, answer;
-        wrtc = publishers[from + "-wrtc"];
+        wrtc = publishers[from].wrtc;
         logger.info("Renegotiating peer_id", from, wrtc, wrtc.getCurrentState());
         roap = sdp, remoteSdp = getSdp(roap);
         //wrtc.setRemoteSdp(remoteSdp);
