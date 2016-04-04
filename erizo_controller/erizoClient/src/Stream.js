@@ -78,7 +78,7 @@ Erizo.Stream = function (spec) {
     that.init = function () {
       try {
         if ((spec.audio || spec.video || spec.screen) && spec.url === undefined) {
-          L.Logger.debug("Requested access to local media");
+          L.Logger.info("Requested access to local media");
           var videoOpt = spec.video;
           if ((videoOpt == true || spec.screen == true) && that.videoSize !== undefined) {
             videoOpt = {mandatory: {minWidth: that.videoSize[0], minHeight: that.videoSize[1], maxWidth: that.videoSize[2], maxHeight: that.videoSize[3]}};
@@ -115,8 +115,8 @@ Erizo.Stream = function (spec) {
             that.dispatchEvent(streamEvent);
 
           }, function (error) {
-            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".", error);
-            var streamEvent = Erizo.StreamEvent({type: "access-denied"});
+            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".");
+            var streamEvent = Erizo.StreamEvent({type: "access-denied", msg:error});
             that.dispatchEvent(streamEvent);
           });
           } else {
@@ -125,7 +125,7 @@ Erizo.Stream = function (spec) {
           }
           } catch (e) {
             L.Logger.error("Failed to get access to local media. Error was " + e + ".");
-            var streamEvent = Erizo.StreamEvent({type: "access-denied"});
+            var streamEvent = Erizo.StreamEvent({type: "access-denied", msg:e});
             that.dispatchEvent(streamEvent);
           }
       };
@@ -231,7 +231,7 @@ Erizo.Stream = function (spec) {
         }
     };
 
-    that.checkOptions = function (config, isUpdate){ 
+    that.checkOptions = function (config, isUpdate){
         //TODO: Check for any incompatible options
         if (isUpdate === true){  // We are updating the stream
             if (config.video || config.audio || config.screen){
@@ -257,7 +257,7 @@ Erizo.Stream = function (spec) {
                 L.Logger.warning("Cannot enable slideShowMode if it is not a video subscription, please check your parameters");
                 config.slideShowMode = false;
             }
-        } 
+        }
     };
 
     that.updateConfiguration = function (config, callback) {
