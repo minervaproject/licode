@@ -533,6 +533,8 @@ exports.ErizoJSController = function (spec) {
                 log.info('Removed all publishers. Killing process.');
                 process.exit(0);
             }
+        } else {
+            log.warn("Trying to remove publisher", from, "that doesn't exist here");
         }
     };
 
