@@ -513,12 +513,13 @@ exports.ErizoJSController = function (spec) {
             }
             for (var key in subscribers[from]) {
                 if (subscribers[from].hasOwnProperty(key)){
-                    log.debug("Iterating and closing ", key,  subscribers[from], subscribers[from][key]);
                     subscribers[from][key].close();
                 }
             }
             publishers[from].wrtc.close();
-            publishers[from].muxer.close();
+            publishers[from].muxer.close(function(message){
+                log.info("Muxer finished closing", message);
+            });
 
             delete subscribers[from];
             delete publishers[from];

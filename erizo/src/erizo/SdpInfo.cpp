@@ -257,7 +257,7 @@ namespace erizo {
   }
 
   std::string SdpInfo::getSdp() {
-    char msidtemp [10];
+    char msidtemp [11];
     gen_random(msidtemp,10);
 
     ELOG_DEBUG("Getting SDP");
@@ -528,7 +528,7 @@ namespace erizo {
   void SdpInfo::createOfferSdp(bool videoEnabled, bool audioEnabled){
     ELOG_DEBUG("Creating offerSDP: video %d, audio %d", videoEnabled, audioEnabled);
     this->payloadVector = internalPayloadVector_;
-    this->isBundle = false;
+    this->isBundle = true;
     this->profile = SAVPF;
     this->isRtcpMux = true;
     if(videoEnabled)

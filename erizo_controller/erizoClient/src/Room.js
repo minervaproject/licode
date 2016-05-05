@@ -213,6 +213,10 @@ Erizo.Room = function (spec) {
         that.socket.on('onRemoveStream', function (arg) {
             var stream = that.remoteStreams[arg.id],
                 evt;
+            if (stream === undefined){
+                L.Logger.warning("Received a removeStream for", arg.id, "and it has not been registered here, ignoring.");
+                return;
+            }
             delete that.remoteStreams[arg.id];
             removeStream(stream);
             evt = Erizo.StreamEvent({type: 'stream-removed', stream: stream});
@@ -290,7 +294,7 @@ Erizo.Room = function (spec) {
             token = L.Base64.decodeBase64(spec.token);
 
         if (that.state !== DISCONNECTED) {
-            L.Logger.warn("Room already connected");
+            L.Logger.warning("Room already connected");
         }
 
         // 1- Connect to Erizo-Controller
