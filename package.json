@@ -2,6 +2,8 @@
   "name": "licode",
   "version": "0.1.0",
   "description": "Open Source Communication Provider",
+  "license": "MIT",
+  "private": true,
   "devDependencies": {
     "amqp": "~0.2.0",
     "aws-lib": "~0.3.0",

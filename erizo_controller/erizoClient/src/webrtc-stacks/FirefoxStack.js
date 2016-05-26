@@ -61,6 +61,7 @@ Erizo.FirefoxStack = function (spec) {
         }
     };
 
+    
     that.peerConnection.onaddstream = function (stream) {
         if (that.onaddstream) {
             that.onaddstream(stream);
@@ -73,12 +74,18 @@ Erizo.FirefoxStack = function (spec) {
         }
     };
 
+    that.peerConnection.oniceconnectionstatechange = function (ev) {
+        if (that.oniceconnectionstatechange){
+            that.oniceconnectionstatechange(ev.target.iceConnectionState);
+        }
+    }
 
     var setMaxBW = function (sdp) {
         if (spec.video && spec.maxVideoBW) {
+            sdp = sdp.replace(/b=AS:.*\r\n/g, "");
             var a = sdp.match(/m=video.*\r\n/);
-            if (a == null){
-              a = sdp.match(/m=video.*\n/);
+            if (a == null) {
+                a = sdp.match(/m=video.*\n/);
             }
             if (a && (a.length > 0)) {
                 var r = a[0] + "b=AS:" + spec.maxVideoBW + "\r\n";
@@ -88,8 +95,8 @@ Erizo.FirefoxStack = function (spec) {
 
         if (spec.audio && spec.maxAudioBW) {
             var a = sdp.match(/m=audio.*\r\n/);
-            if (a == null){
-              a = sdp.match(/m=audio.*\n/);
+            if (a == null) {
+                a = sdp.match(/m=audio.*\n/);
             }
             if (a && (a.length > 0)) {
                 var r = a[0] + "b=AS:" + spec.maxAudioBW + "\r\n";
@@ -99,7 +106,7 @@ Erizo.FirefoxStack = function (spec) {
 
         return sdp;
     };
-
+    
     var localDesc;
 
     var setLocalDesc = function (sessionDescription) {
@@ -118,6 +125,30 @@ Erizo.FirefoxStack = function (spec) {
     }
 
     that.updateSpec = function (config, callback){
+        if (config.maxVideoBW || config.maxAudioBW ){
+            if (config.maxVideoBW){
+                L.Logger.debug ("Maxvideo Requested", config.maxVideoBW, "limit", spec.limitMaxVideoBW);
+                if (config.maxVideoBW > spec.limitMaxVideoBW) {
+                    config.maxVideoBW = spec.limitMaxVideoBW;
+                }
+                spec.maxVideoBW = config.maxVideoBW; 
+                L.Logger.debug ("Result", spec.maxVideoBW);
+            }
+            if (config.maxAudioBW) {
+                if (config.maxAudioBW > spec.limitMaxAudioBW) {
+                    config.maxAudioBW = spec.limitMaxAudioBW;
+                }
+                spec.maxAudioBW = config.maxAudioBW;
+            }
+
+            localDesc.sdp = setMaxBW(localDesc.sdp);
+            if (!config.noSdp){
+                L.Logger.error ("Cannot update with renegotiation in Firefox, try without renegotiation");
+            } else {
+                L.Logger.debug ("Updating without renegotiation, newVideoBW:", spec.maxVideoBW, "newAudioBW:", spec.maxAudioBW);
+                spec.callback({type:'updatestream', sdp: localDesc.sdp});
+            }
+        }
         if (config.minVideoBW || (config.slideShowMode!==undefined)){
             L.Logger.debug ("MinVideo Changed to ", config.minVideoBW);
             L.Logger.debug ("SlideShowMode Changed to ", config.slideShowMode);

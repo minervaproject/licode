@@ -17,5 +17,6 @@ npm install --loglevel error express@3.5.1 body-parser morgan errorhandler
 
 cp -r $ROOT/erizo_controller/erizoClient/dist/erizo.js $EXTRAS/basic_example/public/
 cp -r $ROOT/nuve/nuveClient/dist/nuve.js $EXTRAS/basic_example/
+cp -r ${ROOT}/erizo_controller/erizoClient/dist/assets public/
 
 cd $CURRENT_DIR

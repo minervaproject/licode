@@ -42,6 +42,7 @@ namespace erizo {
     uint16_t seqNumCycles;
     uint32_t lastSr;
     uint64_t reportedBandwidth;
+    uint32_t maxBandwidth;
     uint32_t delaySinceLastSr;
 
     uint32_t nextPacketInMs;
@@ -109,11 +110,12 @@ class RtcpProcessor{
 	DECLARE_LOGGER();
   
   public:
-    RtcpProcessor(MediaSink* msink, MediaSource* msource, int defaultBw = 300000);
+    RtcpProcessor(MediaSink* msink, MediaSource* msource, uint32_t maxVideoBw = 300000);
     virtual ~RtcpProcessor(){
     };
     void addSourceSsrc(uint32_t ssrc);
-    void setVideoBW(uint32_t bandwidth);
+    void setMaxVideoBW(uint32_t bandwidth);
+    void setPublisherBW(uint32_t bandwidth);
     void analyzeSr(RtcpHeader* chead);
     void analyzeFeedback(char* buf, int len);
     void checkRtcpFb();
@@ -129,7 +131,7 @@ class RtcpProcessor{
     boost::mutex mapLock_;
     MediaSink* rtcpSink_;  // The sink to send RRs
     MediaSource* rtcpSource_; // The source of SRs
-    uint32_t defaultBw_;
+    uint32_t maxVideoBw_, defaultVideoBw_;
     uint8_t packet_[128];
 
 };

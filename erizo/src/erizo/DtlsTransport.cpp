@@ -5,7 +5,6 @@
 #include "DtlsTransport.h"
 #include "SrtpChannel.h"
 
-#include "dtls/DtlsFactory.h"
 #include "rtp/RtpHeaders.h"
 //#include "rtputils.h"
 
@@ -18,8 +17,8 @@ DEFINE_LOGGER(Resender, "Resender");
 
 Resender::Resender(boost::shared_ptr<NiceConnection> nice, unsigned int comp, const unsigned char* data, unsigned int len) : 
   nice_(nice), comp_(comp), data_(data),len_(len), timer(service) {
-  sent_ = 0;
-}
+    sent_ = 0;
+  }
 
 Resender::~Resender() {
   ELOG_DEBUG("Resender destructor");
@@ -62,14 +61,14 @@ void Resender::resend(const boost::system::error_code& ec) {
     ELOG_DEBUG("%s - Cancelled", nice_->transportName->c_str());
     return;
   }
-  
+
   if (nice_ != NULL) {
     ELOG_DEBUG("%s - Resending DTLS message to %d", nice_->transportName->c_str(), comp_);
     int val = nice_->sendData(comp_, data_, len_);
     if (val < 0) {
-       sent_ = -1;
+      sent_ = -1;
     } else {
-       sent_ = 2;
+      sent_ = 2;
     }
   }
 }
@@ -78,43 +77,39 @@ DtlsTransport::DtlsTransport(MediaType med, const std::string &transport_name, b
     const IceConfig& iceConfig, std::string username, std::string password, bool isServer):
   Transport(med, transport_name, bundle, rtcp_mux, transportListener, iceConfig), 
   readyRtp(false), readyRtcp(false), running_(false), isServer_(isServer) {
-  ELOG_DEBUG( "Initializing DtlsTransport" );
-  dtlsRtp.reset(new DtlsSocketContext());
+    ELOG_DEBUG( "Initializing DtlsTransport" );
+    dtlsRtp.reset(new DtlsSocketContext());
 
+    int comps = 1;
+    if (isServer_){
+      ELOG_DEBUG("Creating a DTLS server: passive");
+      dtlsRtp->createServer();
+      dtlsRtp->setDtlsReceiver(this);
 
-  // TODO the ownership of classes here is....really awkward. Basically, the DtlsFactory created here ends up being owned the the created client
-  // which is in charge of nuking it.  All of the session state is tracked in the DtlsSocketContext.
-  //
-  // A much more sane architecture would be simply having the client _be_ the context.
-  int comps = 1;
-  if (isServer_){
-    ELOG_DEBUG("Creating a DTLS server: passive");
-    (new DtlsFactory())->createServer(dtlsRtp);
-    dtlsRtp->setDtlsReceiver(this);
+      if (!rtcp_mux) {
+        comps = 2;
+        dtlsRtcp.reset(new DtlsSocketContext());
+        dtlsRtcp->createServer();
+        dtlsRtcp->setDtlsReceiver(this);
+      }
+    }else{
+      ELOG_DEBUG("Creating a DTLS client: active");
+      dtlsRtp->createClient();
+      dtlsRtp->setDtlsReceiver(this);
 
-    if (!rtcp_mux) {
-      comps = 2;
-      dtlsRtcp.reset(new DtlsSocketContext());
-      (new DtlsFactory())->createServer(dtlsRtcp);
-      dtlsRtcp->setDtlsReceiver(this);
+      if (!rtcp_mux) {
+        comps = 2;
+        dtlsRtcp.reset(new DtlsSocketContext());
+        dtlsRtcp->createClient();
+        dtlsRtcp->setDtlsReceiver(this);
+      }
     }
-  }else{
-    ELOG_DEBUG("Creating a DTLS client: active");
-    (new DtlsFactory())->createClient(dtlsRtp);
-    dtlsRtp->setDtlsReceiver(this);
+    nice_.reset(new NiceConnection(med, transport_name, this, comps, iceConfig_, username, password));
+    running_ =true;
+    getNice_Thread_ = boost::thread(&DtlsTransport::getNiceDataLoop, this);
+    ELOG_DEBUG("DtlsTransport Created");
 
-    if (!rtcp_mux) {
-      comps = 2;
-      dtlsRtcp.reset(new DtlsSocketContext());
-      (new DtlsFactory())->createClient(dtlsRtcp);
-      dtlsRtcp->setDtlsReceiver(this);
-    }
   }
-  nice_.reset(new NiceConnection(med, transport_name, this, comps, iceConfig_, username, password));
-  running_ =true;
-  getNice_Thread_ = boost::thread(&DtlsTransport::getNiceDataLoop, this);
-
-}
 
 DtlsTransport::~DtlsTransport() {
   ELOG_DEBUG("DtlsTransport destructor");
@@ -124,6 +119,11 @@ DtlsTransport::~DtlsTransport() {
   getNice_Thread_.join();
   ELOG_DEBUG("DTLSTransport destructor END");
 }
+
+void DtlsTransport::start() {
+  ELOG_DEBUG("Starting ICE main loop");
+  nice_->start();
+};
 
 void DtlsTransport::onNiceData(unsigned int component_id, char* data, int len, NiceConnection* nice) {
   int length = len;
@@ -174,7 +174,7 @@ void DtlsTransport::onNiceData(unsigned int component_id, char* data, int len, N
 void DtlsTransport::onCandidate(const CandidateInfo &candidate, NiceConnection *conn) {
   getTransportListener()->onCandidate(candidate, this);
 }
-  
+
 
 
 void DtlsTransport::write(char* data, int len) {
@@ -312,7 +312,7 @@ void DtlsTransport::processLocalSdp(SdpInfo *localSdp_) {
     localSdp_->setCredentials(username, password, VIDEO_TYPE);
     localSdp_->setCredentials(username, password, AUDIO_TYPE);
   }else{
-     localSdp_->setCredentials(username, password, this->mediaType);
+    localSdp_->setCredentials(username, password, this->mediaType);
   }
   ELOG_DEBUG( "Processed Local SDP in DTLS Transport with credentials %s, %s", username.c_str(), password.c_str());
 }
@@ -321,19 +321,20 @@ void DtlsTransport::getNiceDataLoop(){
   while(running_){
     p_ = nice_->getPacket();
     if (p_->length > 0) {
-        this->onNiceData(p_->comp, p_->data, p_->length, NULL);
+      this->onNiceData(p_->comp, p_->data, p_->length, NULL);
     }
     if (p_->length == -1){    
+      ELOG_DEBUG("Got an ending packet, will finish getPacket loop");
       running_=false;
       return;
     }
   }
 }
 bool DtlsTransport::isDtlsPacket(const char* buf, int len) {
-  int data = DtlsFactory::demuxPacket(reinterpret_cast<const unsigned char*>(buf),len);
+  int data = DtlsSocketContext::demuxPacket(reinterpret_cast<const unsigned char*>(buf),len);
   switch(data)
   {
-    case DtlsFactory::dtls:
+    case DtlsSocketContext::dtls:
       return true;
       break;
     default:

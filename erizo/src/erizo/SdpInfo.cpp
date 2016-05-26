@@ -34,6 +34,7 @@ namespace erizo {
   static const char *rtpmap = "a=rtpmap:";
   static const char *rtcpmux = "a=rtcp-mux";
   static const char *fp = "a=fingerprint";
+  static const char *extmap = "a=extmap:";
   static const char *rtcpfb = "a=rtcp-fb:";
   static const char *fmtp = "a=fmtp:";
   static const char *bas = "b=AS:";
@@ -71,14 +72,14 @@ namespace erizo {
     red.channels = 1;
     red.mediaType = VIDEO_TYPE;
     internalPayloadVector_.push_back(red);
-    /*
-       RtpMap rtx;
-       rtx.payloadType = RTX_90000_PT;
-       rtx.encodingName = "rtx";
-       rtx.clockRate = 90000;
-       rtx.channels = 1;
-       rtx.mediaType = VIDEO_TYPE;
-       internalPayloadVector_.push_back(rtx);
+    
+    RtpMap rtx;
+    rtx.payloadType = RTX_90000_PT;
+    rtx.encodingName = "rtx";
+    rtx.clockRate = 90000;
+    rtx.channels = 1;
+    rtx.mediaType = VIDEO_TYPE;
+    internalPayloadVector_.push_back(rtx);
        */
 
     RtpMap ulpfec;
@@ -332,6 +333,14 @@ namespace erizo {
           sdp << "a=recvonly" << endl;
           break;
       }
+
+      ELOG_DEBUG("Writing Extmap for AUDIO %lu", extMapVector.size());
+      for (uint8_t i = 0; i < extMapVector.size(); i++){
+        if (extMapVector[i].mediaType == AUDIO_TYPE){
+          sdp << "a=extmap:" << extMapVector[i].value << " " << extMapVector[i].uri << endl;
+        }
+      }
+       
       if (bundleTags.size()>2){
         ELOG_WARN("More bundleTags than supported, expect unexpected behaviour");
       }
@@ -340,10 +349,6 @@ namespace erizo {
           sdp << "a=mid:" << bundleTags[i].id << endl;
         }
       }
-
-      sdp << "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level" << endl;
-      sdp << "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" << endl;
-
       if (isRtcpMux)
         sdp << "a=rtcp-mux\n";
       for (unsigned int it = 0; it < cryptoVector_.size(); it++) {
@@ -415,8 +420,12 @@ namespace erizo {
       sdp << "a=ice-pwd:" << iceVideoPassword_ << endl;
       //sdp << "a=ice-options:google-ice" << endl;
 
-      sdp << "a=extmap:2 urn:ietf:params:rtp-hdrext:toffset" << endl;
-      sdp << "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" << endl;
+      ELOG_DEBUG("Writing Extmap for VIDEO %lu", extMapVector.size());
+      for (uint8_t i = 0; i < extMapVector.size(); i++){
+        if (extMapVector[i].mediaType == VIDEO_TYPE){
+          sdp << "a=extmap:" << extMapVector[i].value << " " << extMapVector[i].uri << endl;
+        }
+      }
 
       if (isFingerprint) {
         sdp << "a=fingerprint:sha-256 "<< fingerprint << endl;
@@ -567,6 +576,7 @@ namespace erizo {
     this->hasVideo = offerSdp.hasVideo;
     this->hasAudio = offerSdp.hasAudio;
     this->bundleTags = offerSdp.bundleTags;
+    this->extMapVector = offerSdp.extMapVector;
     switch(offerSdp.videoDirection){
       case SENDONLY:
         this->videoDirection = RECVONLY;
@@ -634,6 +644,7 @@ namespace erizo {
       size_t isRecvOnly = line.find(recvonly);
       size_t isSendOnly = line.find(sendonly);
       size_t isFP = line.find(fp);
+      size_t isExtMap = line.find(extmap);
       size_t isFeedback = line.find(rtcpfb);
       size_t isFmtp = line.find(fmtp);
       size_t isBandwidth = line.find(bas);
@@ -770,9 +781,8 @@ namespace erizo {
         }else{
           ELOG_WARN("Unexpected size of a=mid element");
         }
-
-
       }
+
       if (isSsrc != std::string::npos) {
         std::vector<std::string> parts = stringutil::splitOneOf(line, " :", 2);
         // FIXME add error checking
@@ -784,6 +794,7 @@ namespace erizo {
           ELOG_DEBUG("audio ssrc: %u", audioSsrc);
         }
       }
+
       if (isSsrcGroup != std::string::npos) {
         if (mtype == VIDEO_TYPE){
           ELOG_DEBUG("FID group detected");
@@ -823,9 +834,18 @@ namespace erizo {
             videoCodecs++;
           else
             audioCodecs++;
-
           payloadVector.push_back(theMap);
         }
+      }
+      //a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level
+      if (isExtMap != std::string::npos){
+          std::vector<std::string> parts = stringutil::splitOneOf(line, " :=", 3); 
+          if (parts.size()>=3){
+            unsigned int id = strtoul(parts[2].c_str(), NULL, 10);
+            ExtMap anExt (id, parts[3].substr(0, parts[3].size()-1));
+            anExt.mediaType = mtype;
+            extMapVector.push_back(anExt);
+          }
       }
 
       if(isFeedback != std::string::npos){
