@@ -47,7 +47,6 @@ Erizo.ChromeStableStack = function (spec) {
     that.peerConnection = new WebkitRTCPeerConnection(that.pc_config, that.con);
 
     var setMaxBW = function (sdp, maxVideoBW, maxAudioBW) {
-        console.log("Setting maxVideoBW", maxVideoBW, "maxAudioBW", maxAudioBW);
         var as = sdp.match(/b=AS:.*\r\n/g);
         if (as === null) {
           as = sdp.match(/b=AS:.*\n/g);
@@ -213,7 +212,7 @@ Erizo.ChromeStableStack = function (spec) {
     var localDesc, remoteDesc;
 
     var setLocalDesc = function (sessionDescription) {
-        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+        sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
         if (that.shouldRemoveREMB) {
             sessionDescription.sdp = removeRemb(sessionDescription.sdp);
@@ -228,7 +227,7 @@ Erizo.ChromeStableStack = function (spec) {
     }
 
     var setLocalDescp2p = function (sessionDescription) {
-        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+        sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
         sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, "");
         spec.callback({
@@ -256,11 +255,11 @@ Erizo.ChromeStableStack = function (spec) {
                 spec.maxAudioBW = config.maxAudioBW;
             }
 
-            localDesc.sdp = setMaxBW(localDesc.sdp);
+            localDesc.sdp = setMaxBW(localDesc.sdp, spec.maxVideoBW, spec.maxAudioBW);
             if (config.Sdp || config.maxAudioBW){
                 L.Logger.debug ("Updating with SDP renegotiation", spec.maxVideoBW);
                 that.peerConnection.setLocalDescription(localDesc, function () {
-                    remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+                    remoteDesc.sdp = setMaxBW(remoteDesc.sdp, spec.maxVideoBW, spec.maxVideoBW);
                     that.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc), function () {
                         spec.remoteDescriptionSet = true;
                         spec.callback({type:'updatestream', sdp: localDesc.sdp});
