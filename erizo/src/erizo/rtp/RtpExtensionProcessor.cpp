@@ -106,7 +106,6 @@ namespace erizo{
   }
 
   uint32_t RtpExtensionProcessor::stripExtension (char* buf, int len){
-    //TODO
     return len;
   }
 
