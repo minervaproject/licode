@@ -77,9 +77,13 @@ config.erizoController.port = 443;
 config.erizoController.ssl = true;
 
 // This configuration is used by erizoController server to listen for connections
-// Use true if erizoController listens in HTTPS. SSL certificates located in /cert
+// Use true if erizoController listens in HTTPS.
 config.erizoController.listen_ssl = false; //default value: false
 config.erizoController.listen_port = 8080; //default value: 8080
+
+// Custom location for SSL certificates. Default located in /cert
+//config.erizoController.ssl_key = '/full/path/to/ssl.key';
+//config.erizoController.ssl_cert = '/full/path/to/ssl.crt';
 
 // Use the name of the inferface you want to bind to for websockets
 // config.erizoController.networkInterface = 'eth1' // default value: undefined
@@ -122,6 +126,8 @@ config.erizoAgent.prerunProcesses = 6; // default value: 1
 config.erizoAgent.publicIP = host_config.publicIP; //default value: ''
 // Use the name of the inferface you want to bind for ICE candidates
 // config.erizoAgent.networkInterface = 'eth1' // default value: undefined
+// Custom log directory for agent instance log files.
+// config.erizoAgent.instanceLogDir = '/path/to/dir';
 
 /*********************************************************
  ERIZO JS CONFIGURATION
