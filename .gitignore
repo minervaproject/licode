@@ -19,3 +19,5 @@ erizo_controller/erizoAgent/erizo-*.log
 build
 .project
 .cproject
+erizo_controller/erizoClient/dist/erizo.js.gz
+extras/basic_example/public/erizo.js.gz
