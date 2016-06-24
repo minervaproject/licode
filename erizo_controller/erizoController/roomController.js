@@ -71,11 +71,11 @@ exports.RoomController = function (spec) {
     //         erizos[publisher_id] = erizo_id;
     //         callback();
     var getErizoJS = function(callback) {
-    	ecch.getErizoJS(function(erizo_id) {
+    	ecch.getErizoJS(function(erizo_id, agent_id) {
             if (!erizos[erizo_id] && erizo_id !== 'timeout') {
                 erizos[erizo_id] = {publishers: [], ka_count: 0};
             }
-            callback(erizo_id);
+            callback(erizo_id, agent_id);
         });
     };
 
@@ -180,7 +180,7 @@ exports.RoomController = function (spec) {
             log.info("Adding publisher peer_id ", publisher_id, "options", options);;
 
             // We create a new ErizoJS with the publisher_id.
-            getErizoJS(function(erizo_id) {
+            getErizoJS(function(erizo_id, agent_id) {
 
                 if (erizo_id === 'timeout') {
                     log.error("Cannot contact ErizoAgent to add Publisher -- timeout");
@@ -209,6 +209,9 @@ exports.RoomController = function (spec) {
                         callback('timeout-erizojs');
                         return;
                     }else{
+                        if (data.type === 'initializing') {
+                            data.agent_id = agent_id;
+                        }
                         callback(data);
                     }
                 }});

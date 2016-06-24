@@ -108,7 +108,7 @@ if (GLOBAL.config.erizoController.listen_ssl) {
 server.listen(GLOBAL.config.erizoController.listen_port);
 var io = require('socket.io').listen(server, {log:false});
 
-io.set('log level', 0);
+io.set('transports', [ 'websocket' ])
 
 var nuveKey = GLOBAL.config.nuve.superserviceKey;
 
@@ -501,7 +501,7 @@ var listen = function () {
 
                         if (GLOBAL.config.erizoController.report.session_events) {
                             var timeStamp = new Date();
-                            amqper.broadcast('event', {room: socket.room.id, user: socket.id, name: socket.user.name, type: 'publish', stream: id, timestamp: timeStamp.getTime()});
+                            amqper.broadcast('event', {room: socket.room.id, user: socket.id, name: socket.user.name, type: 'publish', stream: id, timestamp: timeStamp.getTime(), agent: signMess.agent_id});
                         }
                         return;
                     } else if (signMess.type ==='failed'){
