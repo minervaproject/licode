@@ -3,6 +3,7 @@
 
 #include <map>
 #include <list>
+#include <set>
 #include <boost/shared_ptr.hpp>
 
 #include "MediaDefinitions.h"
