@@ -36,9 +36,12 @@ namespace erizo {
 
     uint32_t ssrc;
     uint32_t totalPacketsLost;
+    uint32_t prevTotalPacketsLost;
     uint32_t ratioLost:8;
     uint16_t highestSeqNumReceived;
     uint16_t seqNumCycles;
+    uint32_t extendedSeqNo;
+    uint32_t prevExtendedSeqNo;
     uint32_t lastSr;
     uint64_t reportedBandwidth;
     uint32_t maxBandwidth;
@@ -71,14 +74,18 @@ namespace erizo {
     MediaType mediaType;
 
     std::list<boost::shared_ptr<SrData>> senderReports;
+    std::set<uint32_t> nackedPackets_;
 
     RtcpData(){
       nextPacketInMs = 0;
       rrsReceivedInPeriod = 0;
       totalPacketsLost = 0;
+      prevTotalPacketsLost = 0;
       ratioLost = 0;
       highestSeqNumReceived = 0;
       seqNumCycles = 0;
+      extendedSeqNo = 0;
+      prevExtendedSeqNo = 0;
       lastSr = 0;
       reportedBandwidth = 0;
       delaySinceLastSr = 0;
@@ -97,6 +104,7 @@ namespace erizo {
       lastREMBSent = (struct timeval){0, 0};
       lastSrReception = (struct timeval){0, 0};
       lastRrWasScheduled = (struct timeval){0, 0};
+    
     }
 
     // lock for any blocking data change

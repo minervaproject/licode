@@ -11,8 +11,8 @@ namespace erizo{
 
   RtcpAggregator::RtcpAggregator (MediaSink* msink, MediaSource* msource, uint32_t maxVideoBw):
     RtcpProcessor(msink, msource, maxVideoBw), defaultVideoBw_(maxVideoBw/2){
-    ELOG_DEBUG("Starting RtcpAggregator");
-  }
+      ELOG_DEBUG("Starting RtcpAggregator");
+    }
 
   void RtcpAggregator::addSourceSsrc(uint32_t ssrc){
     boost::mutex::scoped_lock mlock(mapLock_);
@@ -35,7 +35,7 @@ namespace erizo{
   void RtcpAggregator::setPublisherBW(uint32_t bandwidth){
     defaultVideoBw_ = (bandwidth*1.2) > maxVideoBw_? maxVideoBw_:(bandwidth*1.2);
   }
-  
+
   void RtcpAggregator::analyzeSr(RtcpHeader* chead){
     uint32_t recvSSRC = chead->getSSRC();
     // We try to add it just in case it is not there yet (otherwise its noop)
@@ -60,6 +60,10 @@ namespace erizo{
 
     RtcpHeader *chead = reinterpret_cast<RtcpHeader*>(buf);
     if (chead->isFeedback()) {      
+      if (chead->getBlockCount() == 0 && (chead->getLength()+1) * 4  == len){
+        ELOG_DEBUG("Ignoring empty RR");
+        return 0;
+      }
       uint32_t sourceSsrc = chead->getSourceSSRC();
       // We try to add it just in case it is not there yet (otherwise its noop)
       this->addSourceSsrc(sourceSsrc);
@@ -73,7 +77,10 @@ namespace erizo{
       int rtcpLength = 0;
       int totalLength = 0;
       int partNum = 0;
-      uint32_t calculatedlsr, delay, calculateLastSr;
+      uint16_t currentNackPos=0;
+      uint16_t blp =0;
+      uint32_t lostPacketSeq=0;
+      uint32_t calculatedlsr, delay, calculateLastSr, extendedSeqNo;
 
       do {
         movingBuf+=rtcpLength;
@@ -96,9 +103,14 @@ namespace erizo{
             }
             theData->ratioLost = theData->ratioLost > chead->getFractionLost()? theData->ratioLost: chead->getFractionLost();  
             theData->totalPacketsLost = theData->totalPacketsLost > chead->getLostPackets()? theData->totalPacketsLost : chead->getLostPackets();
-            theData->highestSeqNumReceived = theData->highestSeqNumReceived > chead->getHighestSeqnum()? theData->highestSeqNumReceived : chead->getHighestSeqnum();
-            theData->seqNumCycles = theData->seqNumCycles > chead->getSeqnumCycles()? theData->seqNumCycles : chead->getSeqnumCycles();
-            theData->jitter = theData->jitter > chead->getJitter()? theData->jitter: chead->getJitter();
+            extendedSeqNo = chead->getSeqnumCycles();
+            extendedSeqNo = (extendedSeqNo << 16) + chead->getHighestSeqnum();
+            if (extendedSeqNo > theData->extendedSeqNo){
+              theData->extendedSeqNo = extendedSeqNo;
+              theData->highestSeqNumReceived = chead->getHighestSeqnum();
+              theData->seqNumCycles = chead->getSeqnumCycles();
+            }
+            theData->jitter = theData->jitter > chead->getJitter()? theData->jitter: chead->getJitter();            
             calculateLastSr = chead->getLastSr();
             calculatedlsr = (chead->getDelaySinceLastSr()*1000)/65536;
             for (std::list<boost::shared_ptr<SrData>>::iterator it=theData->senderReports.begin(); it != theData->senderReports.end(); ++it){
@@ -207,7 +219,16 @@ namespace erizo{
           rtcpHead.setSSRC(rtcpSink_->getVideoSinkSSRC());
           rtcpHead.setSourceSSRC(rtcpSource_->getVideoSourceSSRC());
         }
-        rtcpHead.setFractionLost(rtcpData->ratioLost);
+
+        //rtcpHead.setFractionLost(rtcpData->ratioLost);
+        //Calculate ratioLost
+        uint32_t packetsReceivedinInterval = rtcpData->extendedSeqNo - rtcpData->prevExtendedSeqNo;
+        uint32_t packetsLostInInterval = rtcpData->totalPacketsLost - rtcpData->prevTotalPacketsLost;
+        double ratio = (double)packetsLostInInterval/packetsReceivedinInterval;
+        rtcpHead.setFractionLost(ratio*256);
+        rtcpData->prevTotalPacketsLost = rtcpData->totalPacketsLost;
+        rtcpData->prevExtendedSeqNo = rtcpData->extendedSeqNo;
+        
         rtcpHead.setHighestSeqnum(rtcpData->highestSeqNumReceived);      
         rtcpHead.setSeqnumCycles(rtcpData->seqNumCycles);
         rtcpHead.setLostPackets(rtcpData->totalPacketsLost);
@@ -249,7 +270,7 @@ namespace erizo{
         rtcpData->lastRrSent = now;
         if (dtScheduled>rtcpData->nextPacketInMs) // Every scheduled packet we reset
           rtcpData->shouldReset = true;
-          rtcpData->lastRrWasScheduled = now;
+        rtcpData->lastRrWasScheduled = now;
         // schedule next packet
         float random = (rand()%100+50)/100.0;
         if ( rtcpData->mediaType == AUDIO_TYPE){

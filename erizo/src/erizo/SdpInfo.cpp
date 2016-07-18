@@ -558,7 +558,7 @@ namespace erizo {
     this->hasAudio = audioEnabled;
     this->videoDirection = SENDRECV;
     this->audioDirection = SENDRECV;
-    this->videoRtxSsrc = 55555;
+    // this->videoRtxSsrc = 55555;
     ELOG_DEBUG("Setting Offer SDP");
   }
 
@@ -605,10 +605,12 @@ namespace erizo {
         this->audioDirection = SENDRECV;
         break;
     }
+    /* 
     if (offerSdp.videoRtxSsrc != 0){
       this->videoRtxSsrc = 55555;
     }
-    ELOG_DEBUG("Setting SourceSDP");
+    */
+    ELOG_DEBUG("Offer SDP successfully set");
 
   }
 
