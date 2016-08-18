@@ -57,9 +57,8 @@ config.erizoController = {};
 //     "url": url
 // }
 config.erizoController.iceServers = [
-  {'url': 'stun:stun.l.google.com:19302'},
-  {'url': 'turn:52.10.125.164:443', 'username':'licode', 'credential':'licode'},
-  {'url': 'turn:52.10.125.164:443?transport=tcp', 'username':'licode', 'credential':'licode'}
+  {'url': 'turn:turn.av.minervaproject.com:443', 'username':'licode', 'credential':'licode'},
+  {'url': 'turn:turn.av.minervaproject.com:443?transport=tcp', 'username':'licode', 'credential':'licode'}
 ]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
 
 // Default and max video bandwidth parameters to be used by clients
