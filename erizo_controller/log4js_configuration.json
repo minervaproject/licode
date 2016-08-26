@@ -16,7 +16,7 @@
     "ErizoJSController": "WARN",
     "ErizoAgent": "WARN",
     "ErizoAgentReporter": "ERROR",
-    "Ecch": "INFO",
+    "Ecch": "WARN",
     "RoomController": "INFO",
     "RPCPublic":"ERROR"
   }
