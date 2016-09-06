@@ -96,8 +96,7 @@ Erizo.GetUserMedia = function (config, callback, error) {
                       video: {
                         mandatory: {
                           chromeMediaSource: 'desktop',
-                          // needs to be passed in from transfer_id() in desktop_capture.js
-                          // chromeMediaSourceId: desktop_id,
+                          chromeMediaSourceId: config.video.mandatory.chromeMediaSourceId,
                         }
                       }
                     };
