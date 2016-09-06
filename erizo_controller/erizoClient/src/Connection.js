@@ -86,12 +86,21 @@ Erizo.GetUserMedia = function (config, callback, error) {
                 } else {
                     theConfig = { audio: config.audio, video: { mediaSource: 'window' || 'screen' }};
                 }
-                navigator.getMedia(theConfig,callback,error);
+                navigator.getMedia(theConfig, callback, error);
                 break;
             case "chrome-stable":
                 if (Erizo.isElectron()) {
                     L.Logger.debug("Screen sharing in Electron");
-                    theConfig = {video: { mandatory: { chromeMediaSource: 'screen' } } };
+                    theConfig = {
+                      audio: false,
+                      video: {
+                        mandatory: {
+                          chromeMediaSource: 'desktop',
+                          // needs to be passed in from transfer_id() in desktop_capture.js
+                          // chromeMediaSourceId: desktop_id,
+                        }
+                      }
+                    };
                     navigator.getMedia(theConfig, callback, error);
                 } else {
                     L.Logger.debug("Screen sharing in Chrome");
