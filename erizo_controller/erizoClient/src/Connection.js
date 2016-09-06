@@ -1,4 +1,4 @@
-/*global window, console, navigator*/
+/* global window, console, navigator */
 
 var Erizo = Erizo || {};
 
@@ -18,7 +18,7 @@ Erizo.Connection = function (spec) {
     } else if (that.browser === 'mozilla') {
         L.Logger.debug("Firefox Stack");
         that = Erizo.FirefoxStack(spec);
-    } else if (that.browser === 'bowser'){
+    } else if (that.browser === 'bowser') {
         L.Logger.debug("Bowser Stack");
         that = Erizo.BowserStack(spec);
     } else if (that.browser === 'chrome-stable') {
@@ -28,8 +28,8 @@ Erizo.Connection = function (spec) {
         L.Logger.error("No stack available for this browser");
         throw "WebRTC stack not available";
     }
-    if (!that.updateSpec){
-        that.updateSpec = function(newSpec, callback){
+    if (!that.updateSpec) {
+        that.updateSpec = function(newSpec, callback) {
             L.Logger.error("Update Configuration not implemented in this browser");
             if (callback)
                 callback ("unimplemented");
@@ -40,25 +40,24 @@ Erizo.Connection = function (spec) {
 };
 
 Erizo.getBrowser = function () {
-  "use strict";
+    "use strict";
 
     var browser = "none";
 
-    if (typeof module!=='undefined' && module.exports){
+    if (typeof module!=='undefined' && module.exports) {
         browser = "fake";
-    }else if (window.navigator.userAgent.match("Firefox") !== null) {
-        // Firefox
+    } else if (window.navigator.userAgent.match("Firefox") !== null) {
         browser = "mozilla";
-    } else if (window.navigator.userAgent.match("Bowser") !==null){
+    } else if (window.navigator.userAgent.match("Bowser") !== null) {
         browser = "bowser";
-    } else if (window.navigator.userAgent.match("Chrome") !==null) {
+    } else if (window.navigator.userAgent.match("Chrome") !== null) {
         if (window.navigator.appVersion.match(/Chrome\/([\w\W]*?)\./)[1] >= 26) {
             browser = "chrome-stable";
         }
     } else if (window.navigator.userAgent.match("Safari") !== null) {
-        browser = "bowser";
+        browser = "safari";
     } else if (window.navigator.userAgent.match("AppleWebKit") !== null) {
-        browser = "bowser";
+        browser = "applewebkit";
     }
     return browser;
 };
@@ -70,22 +69,21 @@ Erizo.isElectron = function() {
 Erizo.GetUserMedia = function (config, callback, error) {
     "use strict";
 
-    navigator.getMedia = ( navigator.getUserMedia ||
+    navigator.getMedia = (navigator.getUserMedia ||
                        navigator.webkitGetUserMedia ||
                        navigator.mozGetUserMedia ||
                        navigator.msGetUserMedia);
 
-    if (config.screen){
-
+    if (config.screen) {
         L.Logger.debug("Screen access requested");
-        switch(Erizo.getBrowser()){
+        switch(Erizo.getBrowser()) {
             case "mozilla":
                 L.Logger.debug("Screen sharing in Firefox");
                 var theConfig = {};
-                if(config.video.mandatory != undefined){
+                if (config.video.mandatory != undefined){
                     theConfig.video = config.video;
                     theConfig.video.mediaSource = 'window' || 'screen';
-                }else{
+                } else {
                     theConfig = { audio: config.audio, video: { mediaSource: 'window' || 'screen' }};
                 }
                 navigator.getMedia(theConfig,callback,error);
@@ -93,8 +91,8 @@ Erizo.GetUserMedia = function (config, callback, error) {
             case "chrome-stable":
                 if (Erizo.isElectron()) {
                     L.Logger.debug("Screen sharing in Electron");
-                    theConfig = {video: {mandatory: {chromeMediaSource: 'screen'}}};
-                    navigator.getMedia(theConfig,callback,error);
+                    theConfig = {video: { mandatory: { chromeMediaSource: 'screen' } } };
+                    navigator.getMedia(theConfig, callback, error);
                 } else {
                     L.Logger.debug("Screen sharing in Chrome");
                     // Default extensionId - this extension is only usable in our server, please make your own extension
@@ -105,27 +103,26 @@ Erizo.GetUserMedia = function (config, callback, error) {
                         extensionId = config.extensionId;
                     }
                     L.Logger.debug("Screen access on chrome stable, looking for extension");
-                    try{
-                        chrome.runtime.sendMessage(extensionId,{getStream:true}, function (response){
+                    try {
+                        chrome.runtime.sendMessage(extensionId, { getStream: true }, function (response) {
                             var theConfig = {};
-                            if (response==undefined){
+                            if (response == undefined){
                                 L.Logger.error("Access to screen denied");
-                                var theError = {code:"Access to screen denied"};
+                                var theError = {code: "Access to screen denied"};
                                 error(theError);
                                 return;
                             }
                             var theId = response.streamId;
-                            if(config.video.mandatory!= undefined){
+                            if (config.video.mandatory != undefined) {
                                 theConfig.video = config.video;
                                 theConfig.video.mandatory.chromeMediaSource = 'desktop';
                                 theConfig.video.mandatory.chromeMediaSourceId = theId;
-
-                            }else{
+                            } else {
                                 theConfig = {video: {mandatory: {chromeMediaSource: 'desktop',  chromeMediaSourceId: theId }}};
                             }
                             navigator.getMedia(theConfig,callback,error);
                         });
-                    } catch (e){
+                    } catch (e) {
                         L.Logger.debug("Screensharing plugin is not accessible ");
                         var theError = {code:"no_plugin_present"};
                         error(theError);
