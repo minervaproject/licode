@@ -55,9 +55,9 @@ Erizo.getBrowser = function () {
             browser = "chrome-stable";
         }
     } else if (window.navigator.userAgent.match("Safari") !== null) {
-        browser = "safari";
+        browser = "bowser";
     } else if (window.navigator.userAgent.match("AppleWebKit") !== null) {
-        browser = "applewebkit";
+        browser = "bowser";
     }
     return browser;
 };
