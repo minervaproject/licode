@@ -506,11 +506,9 @@ var listen = function () {
                         }
                         return;
                     } else if (signMess.type ==='failed'){
-                        log.warn("IceConnection Failed on publisher " , id, "alerting clients");
+                        log.warn("IceConnection Failed on publisher, removing " , id);
                         socket.emit('connection_failed',{type:'publish', streamId: id});
-                        //We're going to let the client disconnect let the client do it
-                        
-                        /* 
+                        socket.state = 'sleeping';
                         if (!socket.room.p2p) {
                             socket.room.controller.removePublisher(id);
                             if (GLOBAL.config.erizoController.report.session_events) {
@@ -526,7 +524,6 @@ var listen = function () {
                         if (index !== -1) {
                             socket.streams.splice(index, 1);
                         }
-                        */
                         return;
                     } else if (signMess.type === 'ready') {
                         st.status = PUBLISHER_READY;
