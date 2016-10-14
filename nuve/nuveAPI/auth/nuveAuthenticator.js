@@ -1,18 +1,16 @@
-/*global require, exports, console */
-var db = require('./../mdb/dataBase').db;
+/*global require, exports */
+'use strict';
 var serviceRegistry = require('./../mdb/serviceRegistry');
 var mauthParser = require('./mauthParser');
 
 var logger = require('./../logger').logger;
 
 // Logger
-var log = logger.getLogger("NuveAuthenticator");
+var log = logger.getLogger('NuveAuthenticator');
 
 var cache = {};
 
 var checkTimestamp = function (ser, params) {
-    "use strict";
-
     var lastParams = cache[ser.name],
         lastTS,
         newTS,
@@ -41,9 +39,7 @@ var checkTimestamp = function (ser, params) {
 };
 
 var checkSignature = function (params, key) {
-    "use strict";
-
-    if (params.signature_method !== 'HMAC_SHA1') {
+    if (params.signature_method !== 'HMAC_SHA1') {  // jshint ignore:line
         return false;
     }
 
@@ -58,12 +54,10 @@ var checkSignature = function (params, key) {
 
 /*
  * This function has the logic needed for authenticate a nuve request.
- * If the authentication success exports the service and the user and role (if needed). Else send back
- * a response with an authentication request to the client.
+ * If the authentication success exports the service and the user and role (if needed).
+ * Else send back a response with an authentication request to the client.
  */
 exports.authenticate = function (req, res, next) {
-    "use strict";
-
     var authHeader = req.header('Authorization'),
         challengeReq = 'MAuth realm="http://marte3.dit.upm.es"',
         params;

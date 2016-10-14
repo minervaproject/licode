@@ -39,6 +39,7 @@ OPTIONS:
    -a      Compile Erizo API
    -c      Install Erizo node modules
    -s      Install Spine
+   -t      Run Tests
 EOF
 }
 
@@ -46,11 +47,19 @@ pause() {
   read -p "$*"
 }
 
+check_result() {
+  if [ "$1" -ne 0 ]
+  then
+    exit $1
+  fi
+}
+
 install_erizo(){
   echo 'Installing erizo...'
   cd $ROOT/erizo
   ./generateProject.sh
   ./buildProject.sh
+  check_result $?
   cd $CURRENT_DIR
 }
 
@@ -59,6 +68,7 @@ install_erizo_api(){
   cd $ROOT/erizoAPI
   npm install nan@2.3.2
   ./build.sh
+  check_result $?
   cd $CURRENT_DIR
 }
 
@@ -66,6 +76,7 @@ install_erizo_controller(){
   echo 'Installing erizoController...'
   cd $ROOT/erizo_controller
   ./installErizo_controller.sh
+  check_result $?
   cd $CURRENT_DIR
 }
 
@@ -73,9 +84,17 @@ install_spine(){
   echo 'Installing erizo_native_client...'
   cd $ROOT/spine
   ./installSpine.sh
+  check_result $?
   cd $CURRENT_DIR
 }
 
+execute_tests(){
+  echo 'Testing erizo...'
+  cd $ROOT/erizo
+  ./runTests.sh
+  check_result $?
+  cd $CURRENT_DIR
+}
 
 if [ "$#" -eq 0 ]
 then
@@ -84,7 +103,7 @@ then
   install_erizo_controller
   install_spine
 else
-  while getopts “heac” OPTION
+  while getopts “heacst” OPTION
   do
     case $OPTION in
       h)
@@ -102,6 +121,9 @@ else
         ;;
       s)
         install_spine
+        ;;
+      t)
+        execute_tests
         ;;
       ?)
         usage
