@@ -21,3 +21,5 @@ build
 .cproject
 erizo_controller/erizoClient/dist/erizo.js.gz
 extras/basic_example/public/erizo.js.gz
+spine/erizofc.js
+extras/basic_example/public/assets/
