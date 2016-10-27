@@ -1,6 +1,5 @@
 /*global require, __dirname*/
 'use strict';
-var newrelic = require('newrelic'); // jshint ignore:line
 var express = require('express');
 var bodyParser = require('body-parser');
 var rpc = require('./rpc/rpc');
