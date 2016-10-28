@@ -293,7 +293,7 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.updateBandwidth = function() {
        if (!remoteDesc || !localDesc) {
-         L.Logger.warn('[erizo] Skipping publishAudio');
+         L.Logger.warning('[erizo] Skipping publishAudio');
          return;
        }
        var sessionDescription = localDesc;
@@ -316,7 +316,7 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.publishAudio = function(val) {
        if (!remoteDesc || !localDesc) {
-         L.Logger.warn('[erizo] Skipping publishAudio');
+         L.Logger.warning('[erizo] Skipping publishAudio');
          return;
        }
        localDesc.sdp = changeAudioConnectionType(localDesc.sdp, val);
