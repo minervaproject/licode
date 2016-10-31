@@ -45,7 +45,6 @@ Erizo.AudioPlayer = function (spec) {
         // It will stop the AudioPlayer and remove it from the HTML
         that.destroy = function () {
             that.audio.pause();
-            //clearInterval(that.resize);
             that.parentNode.removeChild(that.div);
         };
 
@@ -78,20 +77,25 @@ Erizo.AudioPlayer = function (spec) {
         that.div.appendChild(that.audio);
 
         // Bottom Bar
-        that.bar = new Erizo.Bar({elementID: 'player_' + that.id,
-                                  id: that.id,
-                                  stream: spec.stream,
-                                  media: that.audio,
-                                  options: spec.options});
+        if (spec.options.bar !== false) {
+            that.bar = new Erizo.Bar({elementID: 'player_' + that.id,
+                                      id: that.id,
+                                      stream: spec.stream,
+                                      media: that.audio,
+                                      options: spec.options});
 
-        that.div.onmouseover = onmouseover;
-        that.div.onmouseout = onmouseout;
+            that.div.onmouseover = onmouseover;
+            that.div.onmouseout = onmouseout;
+        }
+        else {
+            // Expose a consistent object to manipulate the media.
+            that.media = that.audio;
+        }
 
     } else {
         // It will stop the AudioPlayer and remove it from the HTML
         that.destroy = function () {
             that.audio.pause();
-            //clearInterval(that.resize);
             that.parentNode.removeChild(that.audio);
         };
 

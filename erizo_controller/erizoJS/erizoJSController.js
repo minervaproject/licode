@@ -18,6 +18,7 @@ exports.ErizoJSController = function () {
         externalOutputs = {},
 
         SLIDESHOW_TIME = 1000,
+        PLIS_TO_RECOVER = 3,
         initWebRtcConnection,
         getSdp,
         getRoap,
@@ -63,7 +64,10 @@ exports.ErizoJSController = function () {
             }
         } else {
             wrtcPub = publishers[to].wrtc;
-            wrtcPub.generatePLIPacket();
+            for (var pliIndex = 0; pliIndex < PLIS_TO_RECOVER; pliIndex++) {
+              wrtcPub.generatePLIPacket();
+            }
+
             theWrtc.setSlideShowMode(false);
             theWrtc.slideShowMode = false;
             if (publishers[to].wrtc.periodicPlis !== undefined) {
@@ -407,7 +411,6 @@ exports.ErizoJSController = function () {
             that.removeSubscriber(from,to);
         }
         var wrtcId = from + '_' + to;
-        log.info('message: Adding subscriber id: ' + wrtcId + ', options:', options);
         log.info('message: Adding subscriber id: ' + wrtcId + ', ' +
                  logger.objectToLog(options));
         var wrtc = new addon.WebRtcConnection(wrtcId, true, true,
