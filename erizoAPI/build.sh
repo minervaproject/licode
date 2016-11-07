@@ -1,6 +1,6 @@
 #!/bin/bash
-set -e
-
+echo 'linting with cpplint'
+./lint.sh
 if hash node-waf 2>/dev/null; then
   echo 'building with node-waf'
   rm -rf build
