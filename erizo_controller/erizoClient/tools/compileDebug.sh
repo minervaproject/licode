@@ -1,5 +1,7 @@
 #!/bin/bash
+
 set -e
+
 FILE=../dist/erizo.js
 rm -f $FILE
 cat ../lib/socket.io.js >> $FILE
