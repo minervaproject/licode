@@ -370,6 +370,5 @@ exports.RoomController = function (spec) {
         }
     };
 
-
     return that;
 };

@@ -426,4 +426,3 @@ void RtcpAggregator::resetData(boost::shared_ptr<RtcpData> data, uint32_t bandwi
   data->lastDelay = data->lastDelay*0.6;
 }
 }  // namespace erizo
-
