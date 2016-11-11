@@ -29,5 +29,5 @@ cd $CURRENT_DIR
 echo [minerva/licode] applying nuve patch
 
 cd $ROOT
-patch -p0 < $PATHNAME/minerva_nuve.patch0
+patch -t -p0 < $PATHNAME/minerva_nuve.patch0
 cd $CURRENT_DIR
