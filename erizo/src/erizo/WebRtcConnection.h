@@ -6,6 +6,8 @@
 
 #include <string>
 #include <queue>
+#include <map>
+#include <vector>
 
 #include "./logger.h"
 #include "./SdpInfo.h"
@@ -52,7 +54,7 @@ class WebRtcConnectionStatsListener {
  * it comprises all the necessary Transport components.
  */
 class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSink, public FeedbackSource,
-                        public TransportListener, public webrtc::RtpData,
+                        public TransportListener, public webrtc::RtpData, public LogContext,
                         public std::enable_shared_from_this<WebRtcConnection> {
   DECLARE_LOGGER();
 
@@ -63,8 +65,8 @@ class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSin
    * Constructor.
    * Constructs an empty WebRTCConnection without any configuration.
    */
-  WebRtcConnection(const std::string& connection_id, bool audioEnabled, bool videoEnabled,
-                  const IceConfig& iceConfig, WebRtcConnectionEventListener* listener);
+  WebRtcConnection(const std::string& connection_id, const IceConfig& iceConfig,
+      const std::vector<RtpMap> rtp_mappings, WebRtcConnectionEventListener* listener);
   /**
    * Destructor.
    */
@@ -82,7 +84,7 @@ class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSin
    */
   bool setRemoteSdp(const std::string &sdp);
 
-  bool createOffer();
+  bool createOffer(bool videoEnabled, bool audioEnabled, bool bundle);
   /**
    * Add new remote candidate (from remote peer).
    * @param sdp The candidate in SDP format.
@@ -145,6 +147,8 @@ class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSin
 
   void setSlideShowMode(bool state);
 
+  void setMetadata(std::map<std::string, std::string> metadata);
+
   // webrtc::RtpHeader overrides.
   int32_t OnReceivedPayloadData(const uint8_t* payloadData, const uint16_t payloadSize,
                                 const webrtc::WebRtcRTPHeader* rtpHeader) override;
@@ -166,6 +170,7 @@ class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSin
   int bundle_;
   WebRtcConnectionEventListener* connEventListener_;
   IceConfig iceConfig_;
+  std::vector<RtpMap> rtp_mappings_;
   RtpExtensionProcessor extProcessor_;
 
   uint32_t rateControl_;  // Target bitrate for hacky rate control in BPS
@@ -197,7 +202,7 @@ class WebRtcConnection: public MediaSink, public MediaSource, public FeedbackSin
   int deliverFeedback_(char* buf, int len) override;
 
   inline const char* toLog() {
-    return (std::string("id: ") + connection_id_).c_str();
+    return ("id: " + connection_id_ + ", " + printLogContext()).c_str();
   }
 
   // Utils

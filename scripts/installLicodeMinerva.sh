@@ -31,3 +31,6 @@ echo [minerva/licode] applying nuve patch
 cd $ROOT
 patch -t -p0 < $PATHNAME/minerva_nuve.patch0
 cd $CURRENT_DIR
+
+echo [minerva/licode] copying media config file
+cp $PATHNAME/rtp_media_config_minerva.js $ROOT/rtp_media_config.js

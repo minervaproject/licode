@@ -1,10 +1,12 @@
 'use strict';
 var addon = require('./../erizoAPI/build/Release/addon');
 var licodeConfig = require('./../licode_config');
+var mediaConfig = require('./../rtp_media_config');
 var logger = require('./logger').logger;
 var log = logger.getLogger('NativeClient');
 
 GLOBAL.config = licodeConfig || {};
+GLOBAL.mediaConfig = mediaConfig || {};
 
 exports.ErizoNativeConnection = function (spec){
     var that = {},
@@ -76,13 +78,12 @@ exports.ErizoNativeConnection = function (spec){
 
 
     wrtc = new addon.WebRtcConnection('spine',
-                                      true,
-                                      true,
                                       GLOBAL.config.erizo.stunserver,
                                       GLOBAL.config.erizo.stunport,
                                       GLOBAL.config.erizo.minport,
                                       GLOBAL.config.erizo.maxport,
                                       false,
+                                      JSON.stringify(GLOBAL.mediaConfig),
                                       GLOBAL.config.erizo.turnserver,
                                       GLOBAL.config.erizo.turnport,
                                       GLOBAL.config.erizo.turnusername,
@@ -120,7 +121,10 @@ exports.ErizoNativeConnection = function (spec){
                 }
             }, {});
 
-            wrtc.createOffer();
+            var audioEnabled = true;
+            var videoEnabled = true;
+            var bundle = true;
+            wrtc.createOffer(audioEnabled, videoEnabled, bundle);
         } else if (msg.type === 'answer'){
             setTimeout(function(){
                 log.info('Passing delayed answer');
