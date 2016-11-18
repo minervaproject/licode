@@ -12,7 +12,8 @@ using testing::SetArgPointee;
 using testing::SetArgReferee;
 using testing::Invoke;
 using testing::DoAll;
-using testing ::Eq;
+using testing::Eq;
+using testing::StrEq;
 
 class MockLibNice: public erizo::LibNiceInterface {
  public:
@@ -299,9 +300,9 @@ TEST_F(NiceConnectionStartTest, start_Configures_Libnice_With_Turn) {
   EXPECT_CALL(*libnice, NiceAgentGatherCandidates(_, _)).Times(1).WillOnce(Return(true));
   EXPECT_CALL(*libnice, NiceAgentSetRemoteCredentials(_, _, _, _)).Times(0);
   EXPECT_CALL(*libnice, NiceAgentSetPortRange(_, _, _, _, _)).Times(0);
-  EXPECT_CALL(*libnice, NiceAgentSetRelayInfo(_, _, _, ice_config->turnServer.c_str(),
-        ice_config->turnPort, ice_config->turnUsername.c_str(),
-        ice_config->turnPass.c_str())).Times(1).
+  EXPECT_CALL(*libnice, NiceAgentSetRelayInfo(_, _, _, StrEq(ice_config->turnServer.c_str()),
+        ice_config->turnPort, StrEq(ice_config->turnUsername.c_str()),
+        StrEq(ice_config->turnPass.c_str()))).Times(1).
         WillOnce(Return(true));
 
   erizo::NiceConnection nice(libnice_pointer,
@@ -342,13 +343,13 @@ TEST_F(NiceConnectionTest, queuePacket_QueuedPackets_Can_Be_getPacket_When_Ready
   nice_connection->updateIceState(erizo::NICE_READY);
   nice_connection->queueData(0, test_packet, sizeof(test_packet));
   erizo::packetPtr packet = nice_connection->getPacket();
-  EXPECT_EQ(packet->length, sizeof(test_packet));
+  EXPECT_EQ(static_cast<unsigned int>(packet->length), sizeof(test_packet));
   EXPECT_EQ(0, strcmp(test_packet, packet->data));
 }
 
 TEST_F(NiceConnectionTest, sendData_Succeed_When_Ice_Ready) {
   const unsigned int kCompId = 1;
-  const unsigned int kLength = sizeof(test_packet);
+  const int kLength = sizeof(test_packet);
 
   EXPECT_CALL(*nice_listener, updateIceState(erizo::NICE_READY , _)).Times(1);
   nice_connection->updateIceState(erizo::NICE_READY);
