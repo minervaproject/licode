@@ -52,7 +52,10 @@ mediaConfig.rtpMappings.opus = {
     mediaType: 'audio',
     feedbackTypes: [
         'nack'
-    ]
+    ],
+    formatParameters: {
+        minptime: '10;useinbandfec=1',
+    },
 };
 /*
 mediaConfig.rtpMappings.isac16 = {
