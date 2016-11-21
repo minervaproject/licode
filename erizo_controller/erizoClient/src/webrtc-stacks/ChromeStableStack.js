@@ -145,6 +145,17 @@ Erizo.ChromeStableStack = function (spec) {
         return sdp;
     };
 
+    var enableOpusNacks = function (sdp) {
+        var sdpMatch;
+        sdpMatch = sdp.match(/a=rtpmap:(.*)opus.*\r\n/);
+        if (sdpMatch !== null){
+           var theLine = sdpMatch[0] + 'a=rtcp-fb:' + sdpMatch[1] + 'nack' + '\r\n';
+           sdp = sdp.replace(sdpMatch[0], theLine);
+        }
+
+        return sdp;
+    };
+
     /**
      * Closes the connection.
      */
@@ -213,6 +224,7 @@ Erizo.ChromeStableStack = function (spec) {
             sessionDescription.sdp = removeRemb(sessionDescription.sdp);
         }
 
+        sessionDescription.sdp = enableOpusNacks(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g,
                                                                 '');
         spec.callback({
