@@ -556,4 +556,3 @@ class RedHeader {
 }  // namespace erizo
 
 #endif  // ERIZO_SRC_ERIZO_RTP_RTPHEADERS_H_
-

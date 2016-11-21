@@ -11,19 +11,15 @@ var config = require('./../../../licode_config');
 // Logger
 var log = logger.getLogger('TokensResource');
 
-var currentService;
-var currentRoom;
-
 /*
  * Gets the service and the room for the proccess of the request.
  */
-var doInit = function (roomId, callback) {
-    currentService = require('./../auth/nuveAuthenticator').service;
+var doInit = function (req, callback) {
+    var currentService = req.service;
 
-    serviceRegistry.getRoomForService(roomId, currentService, function (room) {
-        //log.info(room);
-        currentRoom = room;
-        callback();
+    serviceRegistry.getRoomForService(req.params.room, currentService, function (room) {
+        req.room = room;
+        callback(currentService, room);
     });
 };
 
@@ -48,9 +44,11 @@ var getTokenString = function (id, token) {
  * The format of a token is:
  * {tokenId: id, host: erizoController host, signature: signature of the token};
  */
-var generateToken = function (callback) {
-    var user = require('./../auth/nuveAuthenticator').user,
-        role = require('./../auth/nuveAuthenticator').role,
+var generateToken = function (req, callback) {
+    var user = req.user,
+        role = req.role,
+        currentRoom = req.room,
+        currentService = req.service,
         r,
         tr,
         token,
@@ -88,7 +86,7 @@ var generateToken = function (callback) {
             token.use = 0;
             token.host = dataBase.testErizoController;
 
-            log.info('Creating testToken');
+            log.info('message: generateTestToken');
 
             tokenRegistry.addToken(token, function (id) {
 
@@ -105,7 +103,8 @@ var generateToken = function (callback) {
 
             token = currentService.testToken;
 
-            log.info('TestToken already exists, sending it', token);
+            log.info('message: generateTestToken already generated - returning, ' +
+                logger.objectToLog(token));
 
             tokenS = getTokenString(token._id, token);
             callback(tokenS);
@@ -114,8 +113,7 @@ var generateToken = function (callback) {
         }
     } else {
 
-        cloudHandler.getErizoControllerForRoom (currentRoom, function (ec) {
-
+        cloudHandler.getErizoControllerForRoom(currentRoom, function (ec) {
             if (ec === 'timeout') {
                 callback('error');
                 return;
@@ -147,31 +145,30 @@ var generateToken = function (callback) {
  * Post Token. Creates a new token for a determined room of a service.
  */
 exports.create = function (req, res) {
-    doInit(req.params.room, function () {
-
+    doInit(req, function (currentService, currentRoom) {
         if (currentService === undefined) {
-            log.warn('Service not found');
+            log.warn('message: createToken - service not found');
             res.send('Service not found', 404);
             return;
         } else if (currentRoom === undefined) {
-            log.warn('Room ', req.params.room, ' does not exist');
+            log.warn('message: createToken - room not found, roomId: ' + req.params.room);
             res.send('Room does not exist', 404);
             return;
         }
 
-        generateToken(function (tokenS) {
+        generateToken(req, function (tokenS) {
 
             if (tokenS === undefined) {
                 res.status(401).send('Name and role?');
                 return;
             }
             if (tokenS === 'error') {
-                log.error('No Erizo Controller available. Error creating token');
+                log.error('message: createToken error, errorMgs: No Erizo Controller available');
                 res.status(404).send('No Erizo Controller found');
                 return;
             }
-            log.info('Created token for room ', currentRoom._id,
-                     'and service ', currentService._id);
+            log.info('message: createToken success, roomId: ' + currentRoom._id +
+                     ', serviceId: ' + currentService._id);
             res.send(tokenS);
         });
     });

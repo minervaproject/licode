@@ -15,6 +15,7 @@
 #include "./MediaDefinitions.h"
 #include "./SdpInfo.h"
 #include "./logger.h"
+#include "lib/LibNiceInterface.h"
 
 typedef struct _NiceAgent NiceAgent;
 typedef struct _GMainContext GMainContext;
@@ -80,7 +81,7 @@ class NiceConnectionListener {
  * Represents an ICE Connection in an new thread.
  *
  */
-class NiceConnection {
+class NiceConnection : public LogContext {
   DECLARE_LOGGER();
 
  public:
@@ -103,9 +104,9 @@ class NiceConnection {
    * @param transportName The name of the transport protocol. Was used when WebRTC used video_rtp instead of just rtp.
    * @param iceComponents Number of ice components pero connection. Default is 1 (rtcp-mux).
    */
-  NiceConnection(MediaType med, const std::string &transportName, const std::string& connection_id,
-                 NiceConnectionListener* listener, unsigned int iceComponents,
-                 const IceConfig& iceConfig, std::string username = "", std::string password = "");
+  NiceConnection(boost::shared_ptr<LibNiceInterface> libnice, MediaType med, const std::string &transportName,
+      const std::string& connection_id, NiceConnectionListener* listener, unsigned int iceComponents,
+      const IceConfig& iceConfig, std::string username = "", std::string password = "");
 
   virtual ~NiceConnection();
   /**
@@ -170,7 +171,11 @@ class NiceConnection {
   void close();
 
  private:
+  std::string iceStateToString(IceState state) const;
+
+ private:
   std::string connection_id_;
+  boost::shared_ptr<LibNiceInterface> lib_nice_;
   NiceAgent* agent_;
   GMainContext* context_;
   GMainLoop* loop_;
@@ -193,7 +198,7 @@ class NiceConnection {
   void mainLoop();
 
   inline const char* toLog() {
-    return (std::string("id: ")+connection_id_).c_str();
+    return ("id: " + connection_id_ + ", " + printLogContext()).c_str();
   }
 };
 

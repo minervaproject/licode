@@ -15,4 +15,3 @@ else
   cd $BIN_DIR
   runcmake
 fi
-

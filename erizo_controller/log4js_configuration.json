@@ -10,13 +10,13 @@
     }
   ],
   "levels": {
-  	"AMQPER": "WARN",
-  	"ErizoController": "WARN",
-    "ErizoJS": "WARN", 
-    "ErizoJSController": "WARN",
-    "ErizoAgent": "WARN",
+    "AMQPER": "ERROR",
+    "ErizoController": "INFO",
+    "ErizoJS": "INFO",
+    "ErizoJSController": "INFO",
+    "ErizoAgent": "INFO",
     "ErizoAgentReporter": "ERROR",
-    "Ecch": "WARN",
+    "EcCloudHandler": "INFO",
     "RoomController": "INFO",
     "RPCPublic":"ERROR"
   }

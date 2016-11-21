@@ -1,11 +1,11 @@
-/*global ErizoGetUserMedia, L, document*/
+/*global L, document*/
+'use strict';
 /*
  * Class Stream represents a local or a remote Stream in the Room. It will handle the WebRTC stream
  * and identify the stream and where it should be drawn.
  */
 var Erizo = Erizo || {};
 Erizo.Stream = function (spec) {
-    "use strict";
     var that = Erizo.EventDispatcher(spec),
         getFrame;
 
@@ -21,8 +21,10 @@ Erizo.Stream = function (spec) {
     that.videoSize = spec.videoSize;
     that.extensionId = spec.extensionId;
 
-    if (that.videoSize !== undefined && (!(that.videoSize instanceof Array) || that.videoSize.length != 4)) {
-        throw Error("Invalid Video Size");
+    if (that.videoSize !== undefined &&
+        (!(that.videoSize instanceof Array) ||
+           that.videoSize.length !== 4)) {
+        throw Error('Invalid Video Size');
     }
     if (spec.local === undefined || spec.local === true) {
         that.local = true;
@@ -40,8 +42,8 @@ Erizo.Stream = function (spec) {
     };
 
     // Changes the attributes of this stream in the room.
-    that.setAttributes = function(attrs) {
-        L.Logger.error("Failed to set attributes data. This Stream object has not been published.");
+    that.setAttributes = function() {
+        L.Logger.error('Failed to set attributes data. This Stream object has not been published.');
     };
 
     that.updateLocalAttributes = function(attrs) {
@@ -69,63 +71,74 @@ Erizo.Stream = function (spec) {
     };
 
     // Sends data through this stream.
-    that.sendData = function (msg) {
-        L.Logger.error("Failed to send data. This Stream object has not that channel enabled.");
+    that.sendData = function () {
+        L.Logger.error('Failed to send data. This Stream object has not that channel enabled.');
     };
 
     // Initializes the stream and tries to retrieve a stream from local video and audio
     // We need to call this method before we can publish it in the room.
     that.init = function () {
+      var streamEvent;
       try {
         if ((spec.audio || spec.video || spec.screen) && spec.url === undefined) {
-          L.Logger.info("Requested access to local media");
+          L.Logger.info('Requested access to local media');
           var videoOpt = spec.video;
-          if ((videoOpt == true || spec.screen == true) && that.videoSize !== undefined) {
-            videoOpt = {mandatory: {minWidth: that.videoSize[0], minHeight: that.videoSize[1], maxWidth: that.videoSize[2], maxHeight: that.videoSize[3]}};
-          } else if (spec.screen == true && videoOpt === undefined){
+          if ((videoOpt === true || spec.screen === true) &&
+              that.videoSize !== undefined) {
+            videoOpt = {mandatory: {minWidth: that.videoSize[0],
+                                    minHeight: that.videoSize[1],
+                                    maxWidth: that.videoSize[2],
+                                    maxHeight: that.videoSize[3]}};
+          } else if (spec.screen === true && videoOpt === undefined) {
             videoOpt = true;
           }
-          var opt = {video: videoOpt, audio: spec.audio, fake: spec.fake};
+          var opt = {video: videoOpt,
+                     audio: spec.audio,
+                     fake: spec.fake,
+                     extensionId: that.extensionId};
+
           if (spec.screen) {
-            delete opt.audio;
-            delete opt.fake;
-            opt.video = {mandatory: {}};
-            opt.video.mandatory.maxWidth = screen.availWidth;
-            opt.video.mandatory.maxHeight = screen.availHeight;
+           delete opt.audio;
+           delete opt.fake;
+           opt.video = {mandatory: {}};
+           opt.video.mandatory.maxWidth = screen.availWidth;
+           opt.video.mandatory.maxHeight = screen.availHeight;
 
-            // If desktopStreamId is passed in the spec, it means we used our our own Chrome extension
-            // to invoke the Media picker and get a desktopStreamId
-            if(spec.desktopStreamId) {
-                opt.video.mandatory.chromeMediaSource = 'desktop';
-                opt.video.mandatory.chromeMediaSourceId = spec.desktopStreamId;
-            }
-            // Otherwise, Erizo.GetUserMedia will invoke the Chrome extension
-            else {
-                opt.screen = spec.screen;
-                opt.extensionId = that.extensionId;
-            }
+           // If desktopStreamId is passed in the spec, it means we used our our own Chrome
+           // extension to invoke the Media picker and get a desktopStreamId
+           if(spec.desktopStreamId) {
+               opt.video.mandatory.chromeMediaSource = 'desktop';
+               opt.video.mandatory.chromeMediaSourceId = spec.desktopStreamId;
+           }
+           // Otherwise, Erizo.GetUserMedia will invoke the Chrome extension
+           else {
+               opt.screen = spec.screen;
+               opt.extensionId = that.extensionId;
+           }
           }
-
-          L.Logger.debug("Calling GetUserMedia with options", opt);
+          L.Logger.debug('Calling GetUserMedia with options', opt);
           Erizo.GetUserMedia(opt, function (stream) {
-            L.Logger.info("User has granted access to local media.");
+            //navigator.webkitGetUserMedia("audio, video", function (stream) {
+
+            L.Logger.info('User has granted access to local media.');
             that.stream = stream;
 
-            var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
+            streamEvent = Erizo.StreamEvent({type: 'access-accepted'});
             that.dispatchEvent(streamEvent);
 
           }, function (error) {
-            L.Logger.error("Failed to get access to local media. Error code was " + error.code + ".");
-            var streamEvent = Erizo.StreamEvent({type: "access-denied", msg:error});
+            L.Logger.error('Failed to get access to local media. Error code was ' +
+                           error.code + '.');
+            var streamEvent = Erizo.StreamEvent({type: 'access-denied', msg:error});
             that.dispatchEvent(streamEvent);
           });
           } else {
-            var streamEvent = Erizo.StreamEvent({type: "access-accepted"});
+            streamEvent = Erizo.StreamEvent({type: 'access-accepted'});
             that.dispatchEvent(streamEvent);
           }
-          } catch (e) {
-            L.Logger.error("Failed to get access to local media. Error was " + e + ".");
-            var streamEvent = Erizo.StreamEvent({type: "access-denied", msg:e});
+          } catch(e) {
+            L.Logger.error('Failed to get access to local media. Error was ' + e + '.');
+            streamEvent = Erizo.StreamEvent({type: 'access-denied', msg: e});
             that.dispatchEvent(streamEvent);
           }
       };
@@ -150,15 +163,22 @@ Erizo.Stream = function (spec) {
     that.play = function (elementID, options) {
         options = options || {};
         that.elementID = elementID;
+        var player;
         if (that.hasVideo() || this.hasScreen()) {
             // Draw on HTML
             if (elementID !== undefined) {
-                var player = new Erizo.VideoPlayer({id: that.getID(), stream: that, elementID: elementID, options: options});
+                player = new Erizo.VideoPlayer({id: that.getID(),
+                                                    stream: that,
+                                                    elementID: elementID,
+                                                    options: options});
                 that.player = player;
                 that.showing = true;
             }
         } else if (that.hasAudio) {
-            var player = new Erizo.AudioPlayer({id: that.getID(), stream: that, elementID: elementID, options: options});
+            player = new Erizo.AudioPlayer({id: that.getID(),
+                                                stream: that,
+                                                elementID: elementID,
+                                                options: options});
             that.player = player;
             that.showing = true;
         }
@@ -181,20 +201,28 @@ Erizo.Stream = function (spec) {
             var video = that.player.video,
 
                 style = document.defaultView.getComputedStyle(video),
-                width = parseInt(style.getPropertyValue("width"), 10),
-                height = parseInt(style.getPropertyValue("height"), 10),
-                left = parseInt(style.getPropertyValue("left"), 10),
-                top = parseInt(style.getPropertyValue("top"), 10),
+                width = parseInt(style.getPropertyValue('width'), 10),
+                height = parseInt(style.getPropertyValue('height'), 10),
+                left = parseInt(style.getPropertyValue('left'), 10),
+                top = parseInt(style.getPropertyValue('top'), 10);
 
-                div = document.getElementById(that.elementID),
-                divStyle = document.defaultView.getComputedStyle(div),
-                divWidth = parseInt(divStyle.getPropertyValue("width"), 10),
-                divHeight = parseInt(divStyle.getPropertyValue("height"), 10),
+            var div;
+            if (typeof that.elementID === 'object' &&
+              typeof that.elementID.appendChild === 'function') {
+                div = that.elementID;
+            }
+            else {
+                div = document.getElementById(that.elementID);
+            }
+
+            var divStyle = document.defaultView.getComputedStyle(div),
+                divWidth = parseInt(divStyle.getPropertyValue('width'), 10),
+                divHeight = parseInt(divStyle.getPropertyValue('height'), 10),
 
                 canvas = document.createElement('canvas'),
                 context;
 
-            canvas.id = "testing";
+            canvas.id = 'testing';
             canvas.width = divWidth;
             canvas.height = divHeight;
             canvas.setAttribute('style', 'display: none');
@@ -235,7 +263,7 @@ Erizo.Stream = function (spec) {
         //TODO: Check for any incompatible options
         if (isUpdate === true){  // We are updating the stream
             if (config.video || config.audio || config.screen){
-                L.Logger.warning("Cannot update type of subscription");
+                L.Logger.warning('Cannot update type of subscription');
                 config.video = undefined;
                 config.audio = undefined;
                 config.screen = undefined;
@@ -243,18 +271,21 @@ Erizo.Stream = function (spec) {
         }else{  // on publish or subscribe
             if(that.local === false){ // check what we can subscribe to
                 if (config.video === true && that.hasVideo() === false){
-                    L.Logger.warning("Trying to subscribe to video when there is no video, won't subscribe to video");
+                    L.Logger.warning('Trying to subscribe to video when there is no ' +
+                                     'video, won\'t subscribe to video');
                     config.video = false;
                 }
                 if (config.audio === true && that.hasAudio() === false){
-                    L.Logger.warning("Trying to subscribe to audio when there is no audio, won't subscribe to audio");
+                    L.Logger.warning('Trying to subscribe to audio when there is no ' +
+                                     'audio, won\'t subscribe to audio');
                     config.audio = false;
                 }
             }
         }
         if(that.local === false){
             if (!that.hasVideo() && (config.slideShowMode === true)){
-                L.Logger.warning("Cannot enable slideShowMode if it is not a video subscription, please check your parameters");
+                L.Logger.warning('Cannot enable slideShowMode if it is not a video ' +
+                                 'subscription, please check your parameters');
                 config.slideShowMode = false;
             }
         }
@@ -266,7 +297,7 @@ Erizo.Stream = function (spec) {
         if (that.pc){
             that.checkOptions(config, true);
             if (that.local){
-                if(that.room.p2p){ 
+                if(that.room.p2p){
                     for (var index in that.pc){
                         that.pc[index].updateSpec(config, callback);
                     }
@@ -278,9 +309,9 @@ Erizo.Stream = function (spec) {
                 that.pc.updateSpec(config, callback);
             }
         } else {
-            return ("This stream has no peerConnection attached, ignoring");
+            return ('This stream has no peerConnection attached, ignoring');
         }
-    }
+    };
 
     return that;
 };

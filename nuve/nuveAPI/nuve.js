@@ -1,5 +1,4 @@
 /*global require, __dirname*/
-var newrelic = require('newrelic');
 'use strict';
 var express = require('express');
 var bodyParser = require('body-parser');
@@ -22,7 +21,8 @@ app.use(express.static(__dirname + '/public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
     extended: true
-}));app.set('view engine', 'ejs');
+}));
+app.set('view engine', 'ejs');
 app.set('view options', {
     layout: false
 });
