@@ -1,4 +1,7 @@
-var config = {}
+var config = {};
+
+/* Read up host-specic network configuration */
+var host_config = require("./licode_config/host");
 
 /*********************************************************
  COMMON CONFIGURATION
@@ -17,7 +20,7 @@ config.logger.configFile = '../log4js_configuration.json'; //default value: "../
  It's used by Nuve and ErizoController
 **********************************************************/
 config.cloudProvider = {};
-config.cloudProvider.name = '';
+config.cloudProvider.name = host_config.cloudProviderName;
 //In Amazon Ec2 instances you can specify the zone host. By default is 'ec2.us-east-1a.amazonaws.com'
 config.cloudProvider.host = '';
 config.cloudProvider.accessKey = '';
@@ -53,37 +56,35 @@ config.erizoController = {};
 //     "credential": password,
 //     "url": url
 // }
-config.erizoController.iceServers = [{'url': 'stun:stun.l.google.com:19302'}]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
+config.erizoController.iceServers = [
+  {'url': 'turn:turn.av.minervaproject.com:443', 'username':'licode', 'credential':'licode'},
+  {'url': 'turn:turn.av.minervaproject.com:443?transport=tcp', 'username':'licode', 'credential':'licode'}
+]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
 
 // Default and max video bandwidth parameters to be used by clients
 config.erizoController.defaultVideoBW = 300; //default value: 300
 config.erizoController.maxVideoBW = 300; //default value: 300
 
-// Public erizoController IP for websockets (useful when behind NATs)
-// Use '' to automatically get IP from the interface
-config.erizoController.publicIP = ''; //default value: ''
-
+//Public erizoController IP for websockets (useful when behind NATs)
+//Use '' to automatically get IP from the interface
+config.erizoController.publicIP = host_config.publicIP;
 // This configuration is used by the clients to reach erizoController
-// Use '' to use the public IP address instead of a hostname
-config.erizoController.hostname = ''; //default value: ''
-config.erizoController.port = 8080; //default value: 8080
-// Use true if clients communicate with erizoController over SSL
-config.erizoController.ssl = false; //default value: false
+//Use '' to use the public IP address instead of a hostname
+config.erizoController.hostname = host_config.publicHostname;
+config.erizoController.port = 443;
+//Use true if clients communicate with erizoController over SSL
+config.erizoController.ssl = true;
 
 // This configuration is used by erizoController server to listen for connections
-// Use true if erizoController listens in HTTPS.
+// Use true if erizoController listens in HTTPS. SSL certificates located in /cert
 config.erizoController.listen_ssl = false; //default value: false
 config.erizoController.listen_port = 8080; //default value: 8080
-
-// Custom location for SSL certificates. Default located in /cert
-//config.erizoController.ssl_key = '/full/path/to/ssl.key';
-//config.erizoController.ssl_cert = '/full/path/to/ssl.crt';
 
 // Use the name of the inferface you want to bind to for websockets
 // config.erizoController.networkInterface = 'eth1' // default value: undefined
 
-config.erizoController.warning_n_rooms = 15; // default value: 15
-config.erizoController.limit_n_rooms = 20; // default value: 20
+config.erizoController.warning_n_rooms = 150; // default value: 15
+config.erizoController.limit_n_rooms = 200; // default value: 20
 config.erizoController.interval_time_keepAlive = 1000; // default value: 1000
 
 // Roles to be used by services
@@ -111,13 +112,13 @@ config.erizoController.cloudHandlerPolicy = 'default_policy.js'; // default valu
 config.erizoAgent = {};
 
 // Max processes that ErizoAgent can run
-config.erizoAgent.maxProcesses 	  = 1; // default value: 1
+config.erizoAgent.maxProcesses    = 10; // default value: 1
 // Number of precesses that ErizoAgent runs when it starts. Always lower than or equals to maxProcesses.
-config.erizoAgent.prerunProcesses = 1; // default value: 1
+config.erizoAgent.prerunProcesses = 10; // default value: 1
 
 // Public erizoAgent IP for ICE candidates (useful when behind NATs)
 // Use '' to automatically get IP from the interface
-config.erizoAgent.publicIP = ''; //default value: ''
+config.erizoAgent.publicIP = host_config.publicIP; //default value: ''
 
 // Use the name of the inferface you want to bind for ICE candidates
 // config.erizoAgent.networkInterface = 'eth1' // default value: undefined
@@ -156,8 +157,8 @@ config.erizo.turnusername = '';
 config.erizo.turnpass = '';
 
 //note, this won't work with all versions of libnice. With 0 all the available ports are used
-config.erizo.minport = 0; // default value: 0
-config.erizo.maxport = 0; // default value: 0
+config.erizo.minport = host_config.minport;
+config.erizo.maxport = host_config.maxport;
 
 /***** END *****/
 // Following lines are always needed.

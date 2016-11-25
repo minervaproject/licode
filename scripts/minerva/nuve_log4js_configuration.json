@@ -24,8 +24,8 @@
     "ServicesResource": "ERROR",
     "TokenResource": "ERROR",
     "TokensResource": "ERROR",
-    "Nuve": "INFO",
+    "Nuve": "ERROR",
     "RPC": "ERROR",
-    "RPCPublic": "INFO"
+    "RPCPublic": "ERROR"
   }
 }
