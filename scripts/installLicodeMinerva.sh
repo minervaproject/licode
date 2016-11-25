@@ -66,8 +66,6 @@ copy_config(){
   # Write network-config file
   mkdir -p $ROOT/licode_config;
 
-  cp $PATHNAME/minerva/host_default.js $ROOT/licode_config/host.js
-
   if [ ! -f "$ROOT/licode_config/host.js" ]; then
     echo [minerva/licode] applying service ID/KEY
     cp $PATHNAME/minerva/host_default.js $ROOT/licode_config/host.js
