@@ -33,15 +33,7 @@ Erizo.Stream = function (spec) {
     // Public functions
 
     that.getID = function () {
-        var id;
-        // Unpublished local streams don't yet have an ID.
-        if (that.local && !spec.streamID) {
-            id = 'local';
-        }
-        else {
-            id = spec.streamID;
-        }
-        return id;
+        return spec.streamID;
     };
 
     // Get attributes of this stream.
@@ -103,9 +95,28 @@ Erizo.Stream = function (spec) {
           var opt = {video: videoOpt,
                      audio: spec.audio,
                      fake: spec.fake,
-                     screen: spec.screen,
-                     extensionId:that.extensionId};
-          L.Logger.debug(opt);
+                     extensionId: that.extensionId};
+
+          if (spec.screen) {
+           delete opt.audio;
+           delete opt.fake;
+           opt.video = {mandatory: {}};
+           opt.video.mandatory.maxWidth = screen.availWidth;
+           opt.video.mandatory.maxHeight = screen.availHeight;
+
+           // If desktopStreamId is passed in the spec, it means we used our our own Chrome
+           // extension to invoke the Media picker and get a desktopStreamId
+           if(spec.desktopStreamId) {
+               opt.video.mandatory.chromeMediaSource = 'desktop';
+               opt.video.mandatory.chromeMediaSourceId = spec.desktopStreamId;
+           }
+           // Otherwise, Erizo.GetUserMedia will invoke the Chrome extension
+           else {
+               opt.screen = spec.screen;
+               opt.extensionId = that.extensionId;
+           }
+          }
+          L.Logger.debug('Calling GetUserMedia with options', opt);
           Erizo.GetUserMedia(opt, function (stream) {
             //navigator.webkitGetUserMedia("audio, video", function (stream) {
 

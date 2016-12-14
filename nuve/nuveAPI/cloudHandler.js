@@ -120,6 +120,12 @@ var addNewPrivateErizoController = function (ip, hostname, port, ssl, callback) 
 var addNewAmazonErizoController = function(privateIP, hostname, port, ssl, callback) {
     var publicIP;
 
+    if (config.cloudProvider.publicIP) {
+        console.log("[nuveAPI] Using configured publicIP", config.cloudProvider.publicIP);
+        addNewPrivateErizoController(config.cloudProvider.publicIP, hostname, port, ssl, callback);
+        return;
+    }
+
     if (AWS === undefined) {
         AWS = require('aws-sdk');
     }

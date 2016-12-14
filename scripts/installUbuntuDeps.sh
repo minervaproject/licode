@@ -55,6 +55,7 @@ install_nvm_node() {
 }
 
 install_apt_deps(){
+
   sudo apt-get install -qq python-software-properties -y
   sudo apt-get install -qq software-properties-common -y
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y

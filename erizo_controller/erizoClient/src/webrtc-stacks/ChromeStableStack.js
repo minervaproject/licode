@@ -10,6 +10,12 @@ Erizo.ChromeStableStack = function (spec) {
     that.pcConfig = {
         'iceServers': []
     };
+    that.maxVideoBW = spec.maxVideoBW;
+    that.maxAudioBW = spec.maxAudioBW;
+    that.audioCodec = spec.audioCodec;
+    that.opusHz = spec.opusHz;
+    that.opusBitrate = spec.opusBitrate;
+    that.shouldRemoveREMB = spec.shouldRemoveREMB;
 
 
     that.con = {'optional': [{'DtlsSrtpKeyAgreement': true}]};
@@ -39,28 +45,101 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.peerConnection = new WebkitRTCPeerConnection(that.pcConfig, that.con);
 
-    var setMaxBW = function (sdp) {
-        var r, a;
-        if (spec.video && spec.maxVideoBW) {
-            sdp = sdp.replace(/b=AS:.*\r\n/g, '');
+    var setMaxBW = function (sdp, maxVideoBW, maxAudioBW) {
+        var a, r, as = sdp.match(/b=AS:.*\r\n/g);
+        if (as === null) {
+          as = sdp.match(/b=AS:.*\n/g);
+        }
+
+        if (as) {
+          for (var i=0; i<as.length; i++) {
+            sdp = sdp.replace(as[i], '');
+          }
+        }
+
+        if (spec.video && maxVideoBW) {
             a = sdp.match(/m=video.*\r\n/);
-            if (a == null) {
+            if (a === null) {
                 a = sdp.match(/m=video.*\n/);
             }
-            if (a && (a.length > 0)) {
-                r = a[0] + 'b=AS:' + spec.maxVideoBW + '\r\n';
+            if (a) {
+                r = a[0] + 'b=AS:' + maxVideoBW + '\r\n';
                 sdp = sdp.replace(a[0], r);
             }
         }
 
-        if (spec.audio && spec.maxAudioBW) {
+        if (spec.audio && maxAudioBW) {
             a = sdp.match(/m=audio.*\r\n/);
-            if (a == null) {
+            if (a === null) {
                 a = sdp.match(/m=audio.*\n/);
             }
-            if (a && (a.length > 0)) {
-                r = a[0] + 'b=AS:' + spec.maxAudioBW + '\r\n';
+            if (a) {
+                r = a[0] + 'b=AS:' + maxAudioBW + '\r\n';
                 sdp = sdp.replace(a[0], r);
+            }
+        }
+        return sdp;
+    };
+
+    var removeRemb = function (sdp) {
+        var a = sdp.match(/a=rtcp-fb:100 goog-remb\r\n/);
+        if (a === null){
+          a = sdp.match(/a=rtcp-fb:100 goog-remb\n/);
+        }
+        if (a) {
+            sdp = sdp.replace(a[0], '');
+        }
+        return sdp;
+    };
+
+    var changeAudioConnectionType = function(sdp, makeActive) {
+      var k1 = sdp.indexOf('m=audio');
+      var k2 = sdp.indexOf('m=video');
+      if (k2 === -1) {
+        k2 = sdp.length;
+      }
+      if (k1 > k2) {
+        var tmp = k2;
+        k2 = k1;
+        k1 = tmp;
+      }
+      var p1 = sdp.slice(0,k1);
+      var p2 = sdp.slice(k1,k2);
+      var p3 = sdp.slice(k2);
+      if (makeActive) {
+        p2 = p2.replace('a=inactive', 'a=sendrecv');
+      } else {
+        p2 = p2.replace('a=sendrecv', 'a=inactive');
+      }
+      return p1 + p2 + p3;
+    };
+
+    var setAudioCodec = function(sdp) {
+        var temp;
+        if (that.audioCodec) {
+            if (that.audioCodec !== 'opus') {
+                temp = sdp.match('.*opus.*\r\na=fmtp.*\r\n');
+                sdp = sdp.replace(temp, '');
+            } else {
+                if (that.opusHz) {
+                    temp = sdp.match('.*opus.*\r\na=fmtp.*');
+                    sdp = sdp.replace(temp, temp +
+                        '; maxplaybackrate=' + that.opusHz +
+                        '; sprop-maxcapturerate=' + that.opusHz);
+                }
+                if (that.opusBitrate) {
+                    temp = sdp.match('.*opus.*\r\na=fmtp.*');
+                    sdp = sdp.replace(temp, temp +
+                        '; maxaveragebitrate=' + that.opusBitrate);
+                }
+            }
+            if (that.audioCodec !== 'ISAC/32000') {
+                temp = sdp.match('.*ISAC/32000\r\n');
+                sdp = sdp.replace(temp, '');
+            }
+            if (that.audioCodec !== 'ISAC/16000') {
+                temp = sdp.match('.*ISAC/16000\r\n');
+                sdp = sdp.replace(temp, '');
             }
         }
         return sdp;
@@ -136,11 +215,15 @@ Erizo.ChromeStableStack = function (spec) {
         }
     };
 
-    var localDesc;
-    var remoteDesc;
+    var localDesc, remoteDesc;
 
     var setLocalDesc = function (sessionDescription) {
-        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+        sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
+        sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
+        if (that.shouldRemoveREMB) {
+            sessionDescription.sdp = removeRemb(sessionDescription.sdp);
+        }
+
         sessionDescription.sdp = enableOpusNacks(sessionDescription.sdp);
         sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g,
                                                                 '');
@@ -153,7 +236,10 @@ Erizo.ChromeStableStack = function (spec) {
     };
 
     var setLocalDescp2p = function (sessionDescription) {
-        sessionDescription.sdp = setMaxBW(sessionDescription.sdp);
+        sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
+        sessionDescription.sdp = setAudioCodec(sessionDescription.sdp);
+        sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g,
+                                                                '');
         spec.callback({
             type: sessionDescription.type,
             sdp: sessionDescription.sdp
@@ -180,11 +266,11 @@ Erizo.ChromeStableStack = function (spec) {
                 spec.maxAudioBW = config.maxAudioBW;
             }
 
-            localDesc.sdp = setMaxBW(localDesc.sdp);
+            localDesc.sdp = setMaxBW(localDesc.sdp, spec.maxVideoBW, spec.maxAudioBW);
             if (config.Sdp || config.maxAudioBW){
                 L.Logger.debug ('Updating with SDP renegotiation', spec.maxVideoBW);
                 that.peerConnection.setLocalDescription(localDesc, function () {
-                    remoteDesc.sdp = setMaxBW(remoteDesc.sdp);
+                    remoteDesc.sdp = setMaxBW(remoteDesc.sdp, spec.maxVideoBW, spec.maxVideoBW);
                     that.peerConnection.setRemoteDescription(
                       new RTCSessionDescription(remoteDesc), function () {
                         spec.remoteDescriptionSet = true;
@@ -217,7 +303,41 @@ Erizo.ChromeStableStack = function (spec) {
         } else {
             that.peerConnection.createOffer(setLocalDesc, errorCallback);
         }
+    };
 
+    that.updateBandwidth = function() {
+       if (!remoteDesc || !localDesc) {
+         L.Logger.warning('[erizo] Skipping publishAudio');
+         return;
+       }
+       var sessionDescription = localDesc;
+       sessionDescription.sdp = setMaxBW(sessionDescription.sdp, that.maxVideoBW, that.maxAudioBW);
+       sessionDescription.sdp = sessionDescription.sdp.replace(/a=ice-options:google-ice\r\n/g, '');
+       that.peerConnection.setLocalDescription(sessionDescription, function() {
+         var as = remoteDesc.sdp.match(/b=AS:.*\r\n/g);
+         if (as === null) {
+           as = remoteDesc.sdp.match(/b=AS:.*\n/g);
+         }
+         if (as) {
+           for (var i=0; i<as.length; i++) {
+              remoteDesc.sdp = remoteDesc.sdp.replace(as[i], '');
+           }
+         }
+         remoteDesc.sdp = setMaxBW(remoteDesc.sdp, that.maxVideoBW, that.maxAudioBW);
+         that.peerConnection.setRemoteDescription(remoteDesc);
+       });
+    };
+
+    that.publishAudio = function(val) {
+       if (!remoteDesc || !localDesc) {
+         L.Logger.warning('[erizo] Skipping publishAudio');
+         return;
+       }
+       localDesc.sdp = changeAudioConnectionType(localDesc.sdp, val);
+       that.peerConnection.setLocalDescription(localDesc, function() {
+           remoteDesc.sdp = changeAudioConnectionType(remoteDesc.sdp, val);
+           that.peerConnection.setRemoteDescription(remoteDesc);
+       });
     };
 
     that.addStream = function (stream) {
@@ -231,7 +351,8 @@ Erizo.ChromeStableStack = function (spec) {
         //L.Logger.info("Process Signaling Message", msg);
 
         if (msg.type === 'offer') {
-            msg.sdp = setMaxBW(msg.sdp);
+            msg.sdp = setMaxBW(msg.sdp, spec.maxVideoBW, spec.maxAudioBW);
+            msg.sdp = setAudioCodec(msg.sdp);
             that.peerConnection.setRemoteDescription(new RTCSessionDescription(msg), function () {
                 that.peerConnection.createAnswer(setLocalDescp2p, function (error) {
                     L.Logger.error('Error: ', error);
@@ -241,15 +362,14 @@ Erizo.ChromeStableStack = function (spec) {
                 L.Logger.error('Error setting Remote Description', error);
             });
 
-
         } else if (msg.type === 'answer') {
             L.Logger.info('Set remote and local description');
             L.Logger.debug('Remote Description', msg.sdp);
             L.Logger.debug('Local Description', localDesc.sdp);
 
-            msg.sdp = setMaxBW(msg.sdp);
+            msg.sdp = setMaxBW(msg.sdp, spec.maxVideoBW, spec.maxAudioBW);
+            msg.sdp = setAudioCodec(msg.sdp);
 
-            remoteDesc = msg;
             that.peerConnection.setLocalDescription(localDesc, function () {
                 that.peerConnection.setRemoteDescription(
                   new RTCSessionDescription(msg), function () {

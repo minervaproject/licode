@@ -17,7 +17,7 @@ Erizo.Connection = function (spec) {
     } else if (that.browser === 'mozilla') {
         L.Logger.debug('Firefox Stack');
         that = Erizo.FirefoxStack(spec);
-    } else if (that.browser === 'bowser'){
+    } else if (that.browser === 'bowser') {
         L.Logger.debug('Bowser Stack');
         that = Erizo.BowserStack(spec);
     } else if (that.browser === 'chrome-stable') {
@@ -60,6 +60,9 @@ Erizo.getBrowser = function () {
     return browser;
 };
 
+Erizo.isElectron = function() {
+    return (window.navigator.userAgent.match('Electron') !== null);
+};
 
 Erizo.GetUserMedia = function (config, callback, error) {
     var promise;
@@ -93,42 +96,49 @@ Erizo.GetUserMedia = function (config, callback, error) {
                 break;
 
             case 'chrome-stable':
-                L.Logger.debug('Screen sharing in Chrome');
-                // Default extensionId - this extension is only usable in our server,
-                // please make your own extension based on the code in
-                // erizo_controller/erizoClient/extras/chrome-extension
-                var extensionId = 'okeephmleflklcdebijnponpabbmmgeo';
-                if (config.extensionId){
-                    L.Logger.debug('extensionId supplied, using ' + config.extensionId);
-                    extensionId = config.extensionId;
-                }
-                L.Logger.debug('Screen access on chrome stable, looking for extension');
-                try {
-                    chrome.runtime.sendMessage(extensionId, {getStream: true}, function (response){
-                        var theConfig = {};
-                        if (response === undefined){
-                            L.Logger.error('Access to screen denied');
-                            var theError = {code:'Access to screen denied'};
-                            error(theError);
-                            return;
-                        }
-                        var theId = response.streamId;
-                        if(config.video.mandatory !== undefined){
-                            theConfig.video = config.video;
-                            theConfig.video.mandatory.chromeMediaSource = 'desktop';
-                            theConfig.video.mandatory.chromeMediaSourceId = theId;
+                if (Erizo.isElectron()) {
+                    L.Logger.debug('Screen sharing in Electron');
+                    var theConfig = {video: { mandatory: { chromeMediaSource: 'screen' } } };
+                    navigator.getMedia(theConfig, callback, error);
+                } else {
+                  L.Logger.debug('Screen sharing in Chrome');
+                  // Default extensionId - this extension is only usable in our server,
+                  // please make your own extension based on the code in
+                  // erizo_controller/erizoClient/extras/chrome-extension
+                  var extensionId = 'okeephmleflklcdebijnponpabbmmgeo';
+                  if (config.extensionId){
+                      L.Logger.debug('extensionId supplied, using ' + config.extensionId);
+                      extensionId = config.extensionId;
+                  }
+                  L.Logger.debug('Screen access on chrome stable, looking for extension');
+                  try{
+                      chrome.runtime.sendMessage(extensionId, {getStream: true},
+                                                 function (response) {
+                          var theConfig = {};
+                          if (response === undefined){
+                              L.Logger.error('Access to screen denied');
+                              var theError = {code:'Access to screen denied'};
+                              error(theError);
+                              return;
+                          }
+                          var theId = response.streamId;
+                          if(config.video.mandatory !== undefined){
+                              theConfig.video = config.video;
+                              theConfig.video.mandatory.chromeMediaSource = 'desktop';
+                              theConfig.video.mandatory.chromeMediaSourceId = theId;
 
-                        }else{
-                            theConfig = {video: {mandatory: {chromeMediaSource: 'desktop',
-                                                             chromeMediaSourceId: theId }}};
-                        }
-                        navigator.getMedia(theConfig, callback, error);
-                    });
-                } catch(e) {
-                    L.Logger.debug('Screensharing plugin is not accessible ');
-                    var theError = {code:'no_plugin_present'};
-                    error(theError);
-                    return;
+                          }else{
+                              theConfig = {video: {mandatory: {chromeMediaSource: 'desktop',
+                                                               chromeMediaSourceId: theId }}};
+                          }
+                          navigator.getMedia(theConfig,callback,error);
+                      });
+                  } catch (e){
+                      L.Logger.debug('Screensharing plugin is not accessible ');
+                      var theError = {code:'no_plugin_present'};
+                      error(theError);
+                      return;
+                  }
                 }
                 break;
 

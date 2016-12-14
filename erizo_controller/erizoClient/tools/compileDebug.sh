@@ -22,3 +22,5 @@ cat ../src/views/VideoPlayer.js >> $FILE
 cat ../src/views/AudioPlayer.js >> $FILE
 cat ../src/views/Bar.js >> $FILE
 cat ../src/views/Speaker.js >> $FILE
+gzip -c $FILE > $FILE.gz
+cp ../dist/erizo.js* ../../../extras/basic_example/public

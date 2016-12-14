@@ -113,7 +113,6 @@ Erizo.Room = function (spec) {
     connectSocket = function (token, callback, error) {
 
         var createRemotePc = function (stream, peerSocket) {
-
             stream.pc = Erizo.Connection({callback: function (msg) {
                   sendSDPSocket('signaling_message', {streamId: stream.getID(),
                                                       peerSocket: peerSocket,
@@ -123,7 +122,8 @@ Erizo.Room = function (spec) {
               maxAudioBW: spec.maxAudioBW,
               maxVideoBW: spec.maxVideoBW,
               limitMaxAudioBW:spec.maxAudioBW,
-              limitMaxVideoBW: spec.maxVideoBW});
+              limitMaxVideoBW: spec.maxVideoBW,
+              shouldRemoveREMB: spec.shouldRemoveREMB});
 
             stream.pc.onaddstream = function (evt) {
                 // Draw on html
@@ -222,7 +222,6 @@ Erizo.Room = function (spec) {
                                                  bandwidth: arg.bandwidth});
                     stream.dispatchEvent(evt);
                 }
-
             }
         });
 
@@ -443,6 +442,7 @@ Erizo.Room = function (spec) {
             // 2- Publish Media Stream to Erizo-Controller
             if (stream.hasAudio() || stream.hasVideo() || stream.hasScreen()) {
                 if (stream.url !== undefined || stream.recording !== undefined) {
+                    L.logger.info('[room] Re-sending publish', stream.url);
                     var type;
                     var arg;
                     if (stream.url) {
@@ -476,8 +476,11 @@ Erizo.Room = function (spec) {
                                 };
                                 that.localStreams[id] = stream;
                                 stream.room = that;
-                                if (callback)
-                                    callback(id);
+                                if (callback) {
+                                    setTimeout(function() {
+                                        callback(id);
+                                    }, 1);
+                                }
                             } else {
                                 L.Logger.error('Error when publishing stream', error);
                                 // Unauth -1052488119
@@ -568,7 +571,8 @@ Erizo.Room = function (spec) {
                                limitMaxAudioBW: spec.maxAudioBW,
                                limitMaxVideoBW: spec.maxVideoBW,
                                audio: stream.hasAudio(),
-                               video: stream.hasVideo()});
+                               video: stream.hasVideo(),
+                               shouldRemoveREMB: options.shouldRemoveREMB});
 
                             stream.pc.addStream(stream.stream);
                             stream.pc.oniceconnectionstatechange = function (state) {
@@ -630,6 +634,17 @@ Erizo.Room = function (spec) {
             L.Logger.error('Trying to publish invalid stream');
             if(callback) callback(undefined, 'Invalid Stream');
         }
+    };
+
+    that.updateBandwidth = function(stream) {
+        L.Logger.info('[renegotiate] ', stream.pc.maxVideoBW);
+        stream.pc.updateBandwidth();
+    };
+
+    that.publishAudio = function(stream, val) {
+      if (stream.pc) {
+        stream.pc.publishAudio(val);
+      }
     };
 
     // Returns callback(id, error)
