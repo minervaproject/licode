@@ -10,6 +10,8 @@ popd > /dev/null
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/erizo/build/erizo:$ROOT/erizo:$ROOT/build/libdeps/build/lib
 export ERIZO_HOME=$ROOT/erizo/
 
+NVM_CHECK="$ROOT"/scripts/checkNvm.sh
+
 cd $ROOT/erizo_controller/erizoAgent
 
 ulimit -n 4096
@@ -25,5 +27,7 @@ if [ $nuve_status -ne 0 ]; then
   exit 1
 fi
 
+. $NVM_CHECK
 
+nvm use
 node erizoAgent.js
