@@ -54,7 +54,7 @@ copy_config(){
   SERVID=`echo $SERVID| cut -d'"' -f 1`
 
   replacement=s/_auto_generated_ID_/${SERVID}/
-  sed $replacement $PATHNAME/minerva/licode_default.js > $BUILD_DIR/licode_1.js
+  sed $replacement $PATHNAME/licode_config_minerva.js > $BUILD_DIR/licode_1.js
   replacement=s/_auto_generated_KEY_/${SERVKEY}/
   sed $replacement $BUILD_DIR/licode_1.js > $ROOT/licode_config.js
   rm $BUILD_DIR/licode_1.js
@@ -63,13 +63,6 @@ copy_config(){
   echo "{ \"SUPERSERVICE_ID\": \"$SERVID\", \"SUPERSERVICE_KEY\": \"$SERVKEY\" }" > $PATHNAME/../extras/basic_example/public/nuveServiceConfig.py
   cat $PATHNAME/../extras/basic_example/public/nuveServiceConfig.py > $PATHNAME/../extras/basic_example/public/nuveServiceConfig.json
 
-  # Write network-config file
-  mkdir -p $ROOT/licode_config;
-
-  if [ ! -f "$ROOT/licode_config/host.js" ]; then
-    echo [minerva/licode] applying service ID/KEY
-    cp $PATHNAME/minerva/host_default.js $ROOT/licode_config/host.js
-  fi
 }
 
 echo [minerva/licode] copying general config files
