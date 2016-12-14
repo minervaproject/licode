@@ -42,7 +42,7 @@ cp $PATHNAME/minerva/erizo_log4cxx.properties $ROOT/erizo_controller/erizoAgent/
 
 copy_config(){
 
-  dbURL=`grep "config.nuve.dataBaseURL" $PATHNAME/minerva/licode_default.js`
+  dbURL=`grep "config.nuve.dataBaseURL" $PATHNAME/licode_config_minerva.js`
 
   dbURL=`echo $dbURL| cut -d'"' -f 2`
   dbURL=`echo $dbURL| cut -d'"' -f 1`
