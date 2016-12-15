@@ -10,6 +10,8 @@ BUILD_DIR=$ROOT/build
 CURRENT_DIR=`pwd`
 LIB_DIR=$BUILD_DIR/libdeps
 PREFIX_DIR=$LIB_DIR/build/
+NVM_CHECK="$PATHNAME"/checkNvm.sh
+
 
 export ERIZO_HOME=$ROOT/erizo
 
