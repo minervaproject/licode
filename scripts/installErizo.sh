@@ -57,6 +57,8 @@ install_erizo(){
 install_erizo_api(){
   echo 'Installing erizoAPI...'
   cd $ROOT/erizoAPI
+  . $NVM_CHECK
+  nvm use
   npm install nan@2.3.2
   ./build.sh
   check_result $?
