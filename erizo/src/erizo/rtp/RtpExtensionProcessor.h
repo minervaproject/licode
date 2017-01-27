@@ -18,6 +18,7 @@ enum RTPExtensions {
   ABS_SEND_TIME,        // http:// www.webrtc.org/experiments/rtp-hdrext/abs-send-time
   TOFFSET,              // urn:ietf:params:rtp-hdrext:toffset
   VIDEO_ORIENTATION,    // urn:3gpp:video-orientation
+  TRANSPORT_CC,    // http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
   PLAYBACK_TIME         //  http:// www.webrtc.org/experiments/rtp-hdrext/playout-delay
 };
 
@@ -25,7 +26,7 @@ class RtpExtensionProcessor{
   DECLARE_LOGGER();
 
  public:
-  RtpExtensionProcessor();
+  explicit RtpExtensionProcessor(const std::vector<erizo::ExtMap> ext_mappings);
   virtual ~RtpExtensionProcessor();
 
   void setSdpInfo(const SdpInfo& theInfo);
@@ -37,8 +38,13 @@ class RtpExtensionProcessor{
   std::array<RTPExtensions, 10> getAudioExtensionMap() {
     return ext_map_audio_;
   }
+  std::vector<ExtMap> getSupportedExtensionMap() {
+    return ext_mappings_;
+  }
+  bool isValidExtension(std::string uri);
 
  private:
+  std::vector<ExtMap> ext_mappings_;
   std::array<RTPExtensions, 10> ext_map_video_, ext_map_audio_;
   std::map<std::string, uint8_t> translationMap_;
   uint32_t processAbsSendTime(char* buf);
