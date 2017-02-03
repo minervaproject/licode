@@ -84,7 +84,10 @@ Erizo.Room = function (spec) {
             stream.hide();
 
             // Close PC stream
-            if (stream.pc) stream.pc.close();
+            if (stream.pc) {
+              stream.pc.close();
+              delete stream.pc;
+            }
             if (stream.local) {
                 stream.stream.stop();
             }
@@ -745,6 +748,9 @@ Erizo.Room = function (spec) {
 
             if (stream.hasVideo() || stream.hasAudio() || stream.hasScreen()) {
                 // 1- Subscribe to Stream
+
+                if (!stream.hasVideo() && !stream.hasScreen()) options.video = false;
+                if (!stream.hasAudio()) options.audio = false;
 
                 if (that.p2p) {
                     sendSDPSocket('subscribe', {streamId: stream.getID(),
