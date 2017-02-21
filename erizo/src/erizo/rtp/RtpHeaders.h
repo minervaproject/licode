@@ -413,7 +413,6 @@ class RtcpHeader {
   inline void setDelaySinceLastSr(uint32_t delaylastsr) {
     report.receiverReport.delaysincelast = htonl(delaylastsr);
   }
-
   inline uint32_t getPacketsSent() {
     return ntohl(report.senderReport.packetsent);
   }
@@ -423,8 +422,14 @@ class RtcpHeader {
   inline uint32_t getOctetsSent() {
     return ntohl(report.senderReport.octetssent);
   }
+  inline void setOctetsSent(uint32_t octets_sent) {
+    report.senderReport.octetssent = htonl(octets_sent);
+  }
   inline uint64_t getNtpTimestamp() {
     return (((uint64_t)htonl(report.senderReport.ntptimestamp)) << 32) + htonl(report.senderReport.ntptimestamp >> 32);
+  }
+  inline void setNtpTimestamp(uint64_t ntp_timestamp) {
+    report.senderReport.ntptimestamp = (((uint64_t)ntohl(ntp_timestamp)) << 32) + ntohl(ntp_timestamp >> 32);
   }
   inline uint32_t get32MiddleNtp() {
     uint64_t middle = (report.senderReport.ntptimestamp << 16) >> 32;

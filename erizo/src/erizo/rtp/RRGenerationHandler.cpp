@@ -6,10 +6,16 @@ namespace erizo {
 
 DEFINE_LOGGER(RRGenerationHandler, "rtp.RRGenerationHandler");
 
-RRGenerationHandler::RRGenerationHandler(WebRtcConnection *connection, bool use_timing) :
-    connection_{connection}, enabled_{true}, initialized_{false}, use_timing_{use_timing},
+RRGenerationHandler::RRGenerationHandler(bool use_timing)
+  : connection_{nullptr}, enabled_{true}, initialized_{false}, use_timing_{use_timing},
     generator_{random_device_()} {}
 
+RRGenerationHandler::RRGenerationHandler(const RRGenerationHandler&& handler) :  // NOLINT
+    connection_{handler.connection_},
+    enabled_{handler.enabled_},
+    initialized_{handler.initialized_},
+    use_timing_{handler.use_timing_},
+    rr_info_map_{std::move(handler.rr_info_map_)} {}
 
 void RRGenerationHandler::enable() {
   enabled_ = true;
@@ -194,15 +200,27 @@ void RRGenerationHandler::notifyUpdate() {
   if (initialized_) {
     return;
   }
-  uint32_t video_ssrc = connection_->getVideoSourceSSRC();
-  if (video_ssrc != 0) {
-    auto video_packets = std::make_shared<RRPackets>();
-    video_packets->ssrc = video_ssrc;
-    video_packets->type = VIDEO_PACKET;
-    rr_info_map_[video_ssrc] = video_packets;
-    ELOG_DEBUG("%s, message: Initialized video, ssrc: %u", connection_->toLog(), video_ssrc);
-    initialized_ = true;
+
+  auto pipeline = getContext()->getPipelineShared();
+  if (!pipeline) {
+    return;
   }
+
+  connection_ = pipeline->getService<WebRtcConnection>().get();
+  if (!connection_) {
+    return;
+  }
+  std::vector<uint32_t> video_ssrc_list = connection_->getVideoSourceSSRCList();
+  std::for_each(video_ssrc_list.begin(), video_ssrc_list.end(), [this] (uint32_t video_ssrc){
+      if (video_ssrc != 0) {
+        auto video_packets = std::make_shared<RRPackets>();
+        video_packets->ssrc = video_ssrc;
+        video_packets->type = VIDEO_PACKET;
+        rr_info_map_[video_ssrc] = video_packets;
+        ELOG_DEBUG("%s, message: Initialized video, ssrc: %u", connection_->toLog(), video_ssrc);
+        initialized_ = true;
+      }
+  });
   uint32_t audio_ssrc = connection_->getAudioSourceSSRC();
   if (audio_ssrc != 0) {
     auto audio_packets = std::make_shared<RRPackets>();

@@ -6,8 +6,7 @@ namespace erizo {
 
 DEFINE_LOGGER(RtcpProcessorHandler, "rtp.RtcpProcessorHandler");
 
-RtcpProcessorHandler::RtcpProcessorHandler(WebRtcConnection *connection, std::shared_ptr<RtcpProcessor> processor) :
-    connection_{connection}, processor_{processor} {
+RtcpProcessorHandler::RtcpProcessorHandler() : connection_{nullptr} {
 }
 
 void RtcpProcessorHandler::enable() {
@@ -23,8 +22,8 @@ void RtcpProcessorHandler::read(Context *ctx, std::shared_ptr<dataPacket> packet
       processor_->analyzeSr(chead);
     }
   } else {
-    if (connection_->getStats().getLatestTotalBitrate()) {
-      processor_->setPublisherBW(connection_->getStats().getLatestTotalBitrate());
+    if (stats_->getNode()["total"].hasChild("bitrateCalculated")) {
+       processor_->setPublisherBW(stats_->getNode()["total"]["bitrateCalculated"].value());
     }
   }
   processor_->checkRtcpFb();
@@ -44,5 +43,11 @@ void RtcpProcessorHandler::write(Context *ctx, std::shared_ptr<dataPacket> packe
 }
 
 void RtcpProcessorHandler::notifyUpdate() {
+  auto pipeline = getContext()->getPipelineShared();
+  if (pipeline && !connection_) {
+    connection_ = pipeline->getService<WebRtcConnection>().get();
+    processor_ = pipeline->getService<RtcpProcessor>();
+    stats_ = pipeline->getService<Stats>();
+  }
 }
 }  // namespace erizo
