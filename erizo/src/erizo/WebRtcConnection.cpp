@@ -22,11 +22,16 @@
 #include "rtp/FecReceiverHandler.h"
 #include "rtp/RtcpProcessorHandler.h"
 #include "rtp/RtpRetransmissionHandler.h"
+#include "rtp/RtcpFeedbackGenerationHandler.h"
 #include "rtp/StatsHandler.h"
-#include "rtp/RRGenerationHandler.h"
 #include "rtp/SRPacketHandler.h"
 #include "rtp/SenderBandwidthEstimationHandler.h"
 #include "rtp/LayerDetectorHandler.h"
+#include "rtp/LayerBitrateCalculationHandler.h"
+#include "rtp/QualityFilterHandler.h"
+#include "rtp/QualityManager.h"
+#include "rtp/PliPacerHandler.h"
+#include "rtp/RtpPaddingGeneratorHandler.h"
 
 namespace erizo {
 DEFINE_LOGGER(WebRtcConnection, "WebRtcConnection");
@@ -48,6 +53,7 @@ WebRtcConnection::WebRtcConnection(std::shared_ptr<Worker> worker, const std::st
   source_fb_sink_ = this;
   sink_fb_source_ = this;
   stats_ = std::make_shared<Stats>();
+  quality_manager_ = std::make_shared<QualityManager>();
   globalState_ = CONN_INITIAL;
 
   rtcp_processor_ = std::make_shared<RtcpForwarder>(static_cast<MediaSink*>(this), static_cast<MediaSource*>(this));
@@ -233,8 +239,6 @@ bool WebRtcConnection::setRemoteSdp(const std::string &sdp) {
     }
   }
 
-
-
   initializePipeline();
 
   return true;
@@ -244,6 +248,7 @@ void WebRtcConnection::initializePipeline() {
   pipeline_->addService(shared_from_this());
   pipeline_->addService(rtcp_processor_);
   pipeline_->addService(stats_);
+  pipeline_->addService(quality_manager_);
 
   pipeline_->addFront(PacketReader(this));
 
@@ -251,10 +256,14 @@ void WebRtcConnection::initializePipeline() {
   pipeline_->addFront(RtcpProcessorHandler());
   pipeline_->addFront(IncomingStatsHandler());
   pipeline_->addFront(FecReceiverHandler());
+  pipeline_->addFront(LayerBitrateCalculationHandler());
+  pipeline_->addFront(QualityFilterHandler());
   pipeline_->addFront(RtpAudioMuteHandler());
   pipeline_->addFront(RtpSlideShowHandler());
+  pipeline_->addFront(RtpPaddingGeneratorHandler());
+  pipeline_->addFront(PliPacerHandler());
   pipeline_->addFront(BandwidthEstimationHandler());
-  pipeline_->addFront(RRGenerationHandler());
+  pipeline_->addFront(RtcpFeedbackGenerationHandler());
   pipeline_->addFront(RtpRetransmissionHandler());
   pipeline_->addFront(SRPacketHandler());
   pipeline_->addFront(SenderBandwidthEstimationHandler());
@@ -809,6 +818,13 @@ void WebRtcConnection::sendPacket(std::shared_ptr<dataPacket> p) {
   }
 
   pipeline_->write(p);
+}
+
+void WebRtcConnection::setQualityLayer(int spatial_layer, int temporal_layer) {
+  asyncTask([spatial_layer, temporal_layer] (std::shared_ptr<WebRtcConnection> connection) {
+    connection->quality_manager_->setSpatialLayer(spatial_layer);
+    connection->quality_manager_->setTemporalLayer(temporal_layer);
+  });
 }
 
 }  // namespace erizo
