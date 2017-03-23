@@ -58,7 +58,8 @@ Erizo.ChromeStableStack = function (spec) {
       return 'a=ssrc-group:FID ' + spatialLayerId + ' ' + spatialLayerIdRtx + '\r\n';
     };
 
-    var addSpatialLayer = function (cname, msid, mslabel, label, spatialLayerId, spatialLayerIdRtx) {
+    var addSpatialLayer = function (cname, msid, mslabel, label, spatialLayerId, 
+        spatialLayerIdRtx) {
       return  'a=ssrc:' + spatialLayerId + ' cname:' + cname +'\r\n' +
               'a=ssrc:' + spatialLayerId + ' msid:' + msid + '\r\n' +
               'a=ssrc:' + spatialLayerId + ' mslabel:' + mslabel + '\r\n' +
@@ -113,13 +114,13 @@ Erizo.ChromeStableStack = function (spec) {
       result = addSim(spatialLayers);
       var spatialLayerId;
       var spatialLayerIdRtx;
-      for (var spatialLayerIndex in spatialLayers) {
+      for (let spatialLayerIndex in spatialLayers) {
         spatialLayerId = spatialLayers[spatialLayerIndex];
         spatialLayerIdRtx = spatialLayersRtx[spatialLayerIndex];
         result += addGroup(spatialLayerId, spatialLayerIdRtx);
       }
 
-      for (var spatialLayerIndex in spatialLayers) {
+      for (let spatialLayerIndex in spatialLayers) {
         spatialLayerId = spatialLayers[spatialLayerIndex];
         spatialLayerIdRtx = spatialLayersRtx[spatialLayerIndex];
         result += addSpatialLayer(cname, msid, mslabel, label, spatialLayerId, spatialLayerIdRtx);
@@ -384,7 +385,8 @@ Erizo.ChromeStableStack = function (spec) {
 
     that.createOffer = function (isSubscribe) {
         if (isSubscribe === true) {
-            that.peerConnection.createOffer(setLocalDesc.bind(null, isSubscribe), errorCallback, that.mediaConstraints);
+            that.peerConnection.createOffer(setLocalDesc.bind(null, isSubscribe), errorCallback, 
+                that.mediaConstraints);
         } else {
             that.mediaConstraints = {
                 mandatory: {
@@ -392,7 +394,8 @@ Erizo.ChromeStableStack = function (spec) {
                     'OfferToReceiveAudio': false
                 }
             };
-            that.peerConnection.createOffer(setLocalDesc.bind(null, isSubscribe), errorCallback, that.mediaConstraints);
+            that.peerConnection.createOffer(setLocalDesc.bind(null, isSubscribe), errorCallback, 
+                that.mediaConstraints);
         }
     };
 
