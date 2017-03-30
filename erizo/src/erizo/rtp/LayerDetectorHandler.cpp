@@ -57,8 +57,8 @@ void LayerDetectorHandler::parseLayerInfoFromVP8(std::shared_ptr<dataPacket> pac
       packet->compatible_temporal_layers.push_back(1);
     case 1:
       packet->compatible_temporal_layers.push_back(2);
-    case 3:
-      packet->compatible_temporal_layers.push_back(3);
+    // case 3 and beyond are not handled because Chrome only
+    // supports 3 temporal scalability today (03/15/17)
       break;
     default:
       packet->compatible_temporal_layers.push_back(0);
@@ -85,7 +85,7 @@ void LayerDetectorHandler::parseLayerInfoFromVP9(std::shared_ptr<dataPacket> pac
   int spatial_layer = payload->spatialID;
 
   packet->compatible_spatial_layers = {};
-  for (int i = 0; i <= spatial_layer; i++) {
+  for (int i = 5; i >= spatial_layer; i--) {
     packet->compatible_spatial_layers.push_back(i);
   }
 
@@ -110,6 +110,8 @@ void LayerDetectorHandler::parseLayerInfoFromVP9(std::shared_ptr<dataPacket> pac
   } else {
     packet->is_keyframe = false;
   }
+
+  packet->ending_of_layer_frame = payload->endingOfLayerFrame;
   delete payload;
 }
 

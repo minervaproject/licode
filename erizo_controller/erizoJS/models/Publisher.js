@@ -1,4 +1,4 @@
-/*global require, exports, setInterval, clearInterval*/
+/*global require, exports*/
 'use strict';
 var addon = require('./../../../erizoAPI/build/Release/addon');
 var logger = require('./../../common/logger').logger;
@@ -102,6 +102,13 @@ class Source {
       var sub = this.getSubscriber(subId);
       this.muteSubscriberStream(subId, sub.muteVideo, sub.muteAudio);
     }
+  }
+
+  setQualityLayer(id, spatialLayer, temporalLayer) {
+    var subscriber = this.getSubscriber(id);
+    log.info('message: setQualityLayer, spatialLayer: ', spatialLayer,
+                                     ', temporalLayer: ', temporalLayer);
+    subscriber.setQualityLayer(spatialLayer, temporalLayer);
   }
 
   muteSubscriberStream(id, muteVideo, muteAudio) {

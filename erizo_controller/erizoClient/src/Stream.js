@@ -85,7 +85,7 @@ Erizo.Stream = function (spec) {
           L.Logger.info('Requested access to local media');
           var videoOpt = spec.video;
           if (videoOpt === true || spec.screen === true) {
-              videoOpt = {}
+              videoOpt = {};
               if (that.videoSize !== undefined) {
                   videoOpt.mandatory = {};
                   videoOpt.mandatory.minWidth = that.videoSize[0];
@@ -93,13 +93,13 @@ Erizo.Stream = function (spec) {
                   videoOpt.mandatory.maxWidth = that.videoSize[2];
                   videoOpt.mandatory.maxHeight = that.videoSize[3];
               }
-              
+
               if (that.videoFrameRate !== undefined) {
-                  videoOpt.optional = []
+                  videoOpt.optional = [];
                   videoOpt.optional.push({minFrameRate: that.videoFrameRate[0]});
                   videoOpt.optional.push({maxFrameRate: that.videoFrameRate[1]});
               }
-              
+
           } else if (spec.screen === true && videoOpt === undefined) {
             videoOpt = true;
           }
@@ -313,14 +313,30 @@ Erizo.Stream = function (spec) {
         that.pc.updateSpec(config, callback);
     };
 
-    controlHandler = function (handlers, publisherSide, enable) {
-      publisherSide = !(publisherSide !== true);
-      var handlers = (typeof handlers === 'string') ? [handlers] : handlers;
-      handlers = (handlers instanceof Array) ? handlers : [];
-
-      if (handlers.length > 0) {
-        that.room.sendControlMessage(that, 'control', {name: 'controlhandlers', enable: enable, publisherSide: publisherSide, handlers: handlers});
+    that._setQualityLayer = function(spatialLayer, temporalLayer, callback) {
+      if (that.room && that.room.p2p){
+          L.Logger.warning('setQualityLayer is not implemented in p2p streams');
+          callback ('error');
+          return;
       }
+      var config = {qualityLayer : {spatialLayer: spatialLayer, temporalLayer: temporalLayer}};
+      that.checkOptions(config, true);
+      that.pc.updateSpec(config, callback);
+    };
+
+    controlHandler = function (handlers, publisherSide, enable) {
+
+        if (publisherSide !== true) publisherSide = false;
+
+        handlers = (typeof handlers === 'string') ? [handlers] : handlers;
+        handlers = (handlers instanceof Array) ? handlers : [];
+
+        if (handlers.length > 0) {
+            that.room.sendControlMessage(that, 'control', {name: 'controlhandlers', 
+                                        enable: enable, 
+                                        publisherSide: publisherSide, 
+                                        handlers: handlers});
+        }
     };
 
     that.disableHandlers = function (handlers, publisherSide) {

@@ -109,20 +109,22 @@ class RtcpData {
 
 class RtcpProcessor : public Service {
  public:
-  RtcpProcessor(MediaSink* msink, MediaSource* msource, uint32_t maxVideoBw = 300000):
-    rtcpSink_(msink), rtcpSource_(msource) {}
+  RtcpProcessor(MediaSink* msink, MediaSource* msource, uint32_t max_video_bw = 300000):
+    rtcpSink_(msink), rtcpSource_(msource), max_video_bw_{max_video_bw} {}
   virtual ~RtcpProcessor() {}
   virtual void addSourceSsrc(uint32_t ssrc) = 0;
-  virtual void setMaxVideoBW(uint32_t bandwidth) = 0;
   virtual void setPublisherBW(uint32_t bandwidth) = 0;
   virtual void analyzeSr(RtcpHeader* chead) = 0;
   virtual int analyzeFeedback(char* buf, int len) = 0;
   virtual void checkRtcpFb() = 0;
 
+  virtual void setMaxVideoBW(uint32_t bandwidth) { max_video_bw_ = bandwidth; }
+  virtual uint32_t getMaxVideoBW() { return max_video_bw_; }
+
  protected:
   MediaSink* rtcpSink_;  // The sink to send RRs
   MediaSource* rtcpSource_;  // The source of SRs
-  uint32_t maxVideoBw_;
+  uint32_t max_video_bw_;
 };
 
 }  // namespace erizo
