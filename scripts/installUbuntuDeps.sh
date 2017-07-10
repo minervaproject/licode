@@ -134,7 +134,7 @@ install_opus(){
   [ -d $LIB_DIR ] || mkdir -p $LIB_DIR
   cd $LIB_DIR
   if [ ! -f ./opus-1.1.tar.gz ]; then
-    curl -O http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz
+    curl -L -O http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz
     tar -zxvf opus-1.1.tar.gz
     cd opus-1.1
     ./configure --prefix=$PREFIX_DIR
